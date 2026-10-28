@@ -137,7 +137,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
     <!-- Productos -->
     <div class="card overflow-hidden">
       <div class="card-h"><i data-lucide="package" class="w-4 h-4 text-brand-600"></i> Productos</div>
-      <div class="overflow-x-auto"><table class="table">
+      <div class="overflow-x-auto"><table class="table table-keep">
         <thead><tr><th>Descripción</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
         <tbody>
           <?php foreach ($det as $d): ?><tr><td><?= e($d['descripcion']) ?></td><td class="num"><?= num($d['cantidad'], $d['cantidad'] == floor($d['cantidad']) ? 0 : 2) ?></td><td class="num"><?= money($d['precio_unitario']) ?></td><td class="num"><?= money($d['subtotal']) ?></td></tr><?php endforeach; ?>
@@ -159,15 +159,15 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
         <?php endif; ?>
       </div>
       <?php if ($cuotas): ?>
-      <div class="overflow-x-auto"><table class="table">
-        <thead><tr><th>#</th><th>Vence</th><th class="num">Cuota</th><th class="num">Pagado</th><th>Estado</th></tr></thead>
+      <div class="overflow-x-auto"><table class="table table-keep">
+        <thead><tr><th>#</th><th>Vence</th><th class="num">Cuota</th><th class="num hidden sm:table-cell">Pagado</th><th>Estado</th></tr></thead>
         <tbody>
         <?php foreach ($cuotas as $c):
             $venc = $c['estado'] !== 'pagada' && $c['fecha_vencimiento'] < today();
             $b = $c['estado'] === 'pagada' ? ['badge-green', 'Pagada'] : ($venc ? ['badge-red', 'Vencida'] : ($c['estado'] === 'parcial' ? ['badge-yellow', 'Parcial'] : ['badge-gray', 'Pendiente'])); ?>
           <tr class="<?= $venc ? 'bg-rose-50/40' : '' ?>"><td><?= (int) $c['numero'] ?></td>
-            <td><?php if (is_admin() && $c['estado'] !== 'pagada'): ?><form method="post" class="flex gap-1 items-center"><?= csrf_field() ?><input type="hidden" name="accion" value="cuota_fecha"><input type="hidden" name="cuota_id" value="<?= $c['id'] ?>"><input type="date" name="fecha" value="<?= e($c['fecha_vencimiento']) ?>" class="input !py-1 !px-2 !w-auto text-sm" onchange="this.form.submit()"></form><?php else: ?><?= fdate($c['fecha_vencimiento']) ?><?php endif; ?></td>
-            <td class="num"><?= money($c['monto']) ?></td><td class="num"><?= money($c['pagado']) ?></td><td><span class="badge <?= $b[0] ?>"><?= $b[1] ?></span></td></tr>
+            <td><?php if (is_admin() && $c['estado'] !== 'pagada'): ?><form method="post" class="flex gap-1 items-center"><?= csrf_field() ?><input type="hidden" name="accion" value="cuota_fecha"><input type="hidden" name="cuota_id" value="<?= $c['id'] ?>"><input type="date" name="fecha" value="<?= e($c['fecha_vencimiento']) ?>" class="input input-date-sm !py-1 !px-2 text-sm" onchange="this.form.submit()"></form><?php else: ?><?= fdate($c['fecha_vencimiento']) ?><?php endif; ?></td>
+            <td class="num"><?= money($c['monto']) ?></td><td class="num hidden sm:table-cell"><?= money($c['pagado']) ?></td><td><span class="badge <?= $b[0] ?>"><?= $b[1] ?></span></td></tr>
         <?php endforeach; ?>
         </tbody>
       </table></div>

@@ -47,7 +47,7 @@ function e($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); }
 function money($n, $sym = true)
 {
     $m = number_format((float) $n, 2, '.', ',');
-    return $sym ? (currency() . ' ' . $m) : $m;
+    return $sym ? (currency() . "\u{00A0}" . $m) : $m;
 }
 function currency()
 {

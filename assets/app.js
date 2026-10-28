@@ -5,7 +5,7 @@ function toggleSidebar(open) {
 }
 function money(n) {
   n = Number(n || 0);
-  return (window.MONEDA || 'Q') + ' ' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (window.MONEDA || 'Q') + '\u00A0' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function toast(msg, ms) {
   var t = document.createElement('div');
@@ -85,3 +85,32 @@ function openForm(tplId, data) {
   f.dispatchEvent(new Event('formopen'));
   return f;
 }
+
+/* Bloquear zoom (pinch / doble toque) en móviles */
+(function () {
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
+  document.addEventListener('touchmove', function (e) { if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
+  var last = 0;
+  document.addEventListener('touchend', function (e) {
+    var now = Date.now();
+    if (now - last < 300 && !e.target.closest('input, textarea, select')) e.preventDefault();
+    last = now;
+  }, { passive: false });
+  document.addEventListener('wheel', function (e) { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+  document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].indexOf(e.key) >= 0) e.preventDefault(); });
+})();
+
+/* Tablas responsive: copia el encabezado de cada columna a data-label */
+function responsiveTables(root) {
+  (root || document).querySelectorAll('table.table').forEach(function (t) {
+    var heads = Array.prototype.map.call(t.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
+    t.querySelectorAll('tbody tr').forEach(function (tr) {
+      var i = 0;
+      Array.prototype.forEach.call(tr.children, function (td) {
+        if (!td.hasAttribute('data-label')) td.setAttribute('data-label', td.hasAttribute('colspan') ? '' : (heads[i] || ''));
+        i += parseInt(td.getAttribute('colspan') || '1', 10);
+      });
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', function () { responsiveTables(); });

@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?><!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Instalar MANA</title><link rel="stylesheet" href="assets/styles.css"></head>
 <body class="min-h-screen bg-slate-100 grid place-items-center p-6">
 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-lg">

@@ -53,7 +53,7 @@ function layout_header($title = '', array $opt = [])
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
 <title><?= e($title ? $title . ' · ' : '') ?><?= e($emp ? $emp['nombre'] : APP_NAME) ?></title>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
@@ -116,8 +116,8 @@ function layout_header($title = '', array $opt = [])
     <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
       <div class="px-4 lg:px-8 h-16 flex items-center gap-3">
         <button class="lg:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100" onclick="toggleSidebar(true)"><i data-lucide="menu" class="w-5 h-5"></i></button>
-        <h1 class="text-lg font-semibold truncate"><?= e($title) ?></h1>
-        <div class="ml-auto flex items-center gap-2"><?= isset($opt['actions']) ? $opt['actions'] : '' ?></div>
+        <h1 class="text-base sm:text-lg font-semibold truncate min-w-0 flex-1"><?= e($title) ?></h1>
+        <div class="ml-auto flex items-center gap-2 shrink-0"><?= isset($opt['actions']) ? $opt['actions'] : '' ?></div>
       </div>
     </header>
     <main class="flex-1 px-4 lg:px-8 py-6 pb-28 lg:pb-10 max-w-[1400px] w-full mx-auto">
@@ -181,8 +181,8 @@ function stat_card($label, $value, $icon, $color = 'brand', $sub = '')
         'brand' => 'bg-brand-50 text-brand-600', 'green' => 'bg-emerald-50 text-emerald-600', 'red' => 'bg-rose-50 text-rose-600',
         'yellow' => 'bg-amber-50 text-amber-600', 'blue' => 'bg-sky-50 text-sky-600', 'slate' => 'bg-slate-100 text-slate-600', 'violet' => 'bg-violet-50 text-violet-600',
     ];
-    echo '<div class="card p-4 lg:p-5 flex items-start gap-4"><div class="w-11 h-11 rounded-xl grid place-items-center shrink-0 ' . ($colors[$color] ?? $colors['brand']) . '"><i data-lucide="' . e($icon) . '" class="w-5 h-5"></i></div>';
-    echo '<div class="min-w-0"><div class="text-xs text-slate-500 font-medium">' . e($label) . '</div><div class="text-lg sm:text-xl xl:text-2xl font-bold tracking-tight leading-tight break-words">' . $value . '</div>';
+    echo '<div class="card p-3.5 sm:p-4 lg:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-4"><div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl grid place-items-center shrink-0 ' . ($colors[$color] ?? $colors['brand']) . '"><i data-lucide="' . e($icon) . '" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>';
+    echo '<div class="min-w-0 w-full"><div class="text-xs text-slate-500 font-medium">' . e($label) . '</div><div class="text-lg sm:text-xl xl:text-2xl font-bold tracking-tight leading-tight break-words">' . $value . '</div>';
     if ($sub) echo '<div class="text-xs text-slate-500 mt-0.5">' . $sub . '</div>';
     echo '</div></div>';
 }

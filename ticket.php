@@ -26,7 +26,7 @@ if ($v && $v['cliente_id']) $cli = row('SELECT * FROM clientes WHERE id=?', [$v[
 
 function tline($l, $r) { return '<div class="row"><span>' . $l . '</span><span>' . $r . '</span></div>'; }
 ?><!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Ticket</title>
 <style>
 @page { size: 58mm auto; margin: 0; }
