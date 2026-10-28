@@ -3,8 +3,15 @@
 
 function csv_salida($nombre, array $encabezados, array $filas)
 {
+    // Formato Excel (.xlsx): sin problemas de acentos ni de separador
+    if (!empty($GLOBALS['EXPORT_XLSX'])) {
+        require_once __DIR__ . '/importar.php';
+        $datos = [$encabezados];
+        foreach ($filas as $f) $datos[] = array_values($f);
+        xlsx_descargar($nombre, $datos, array_fill(0, count($encabezados), 18));
+    }
     while (ob_get_level()) ob_end_clean();
-    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Type: text/csv; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $nombre . '.csv"');
     header('Cache-Control: no-store');
     $out = fopen('php://output', 'w');
