@@ -203,3 +203,14 @@ function autocomplete(input, box, url, render, pick) {
     } catch (e) {}
   });
 })();
+
+/* Barras de pestañas con scroll horizontal: mantener visible la opción activa */
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.tabs, .overflow-x-auto').forEach(function (bar) {
+    if (bar.scrollWidth <= bar.clientWidth) return;
+    var act = bar.querySelector('.tab.active, .bg-slate-900, .active');
+    if (!act || act === bar) return;
+    var br = bar.getBoundingClientRect(), ar = act.getBoundingClientRect();
+    bar.scrollLeft += (ar.left - br.left) - (bar.clientWidth - ar.width) / 2;
+  });
+});
