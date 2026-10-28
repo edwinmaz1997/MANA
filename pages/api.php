@@ -48,6 +48,18 @@ switch ($a) {
         foreach ($msgs as &$m) { $m['me'] = (int) $m['usuario_id'] === uid(); $m['hora'] = fdate($m['created_at'], true); }
         json_out(['ok' => true, 'data' => $msgs]);
 
+    case 'notif':
+        require_once APP_ROOT . '/app/notificaciones.php';
+        if (is_post()) {
+            csrf_check();
+            $claves = json_decode((string) post('claves', '[]'), true);
+            notificaciones_marcar(is_array($claves) ? $claves : []);
+            json_out(['ok' => true]);
+        }
+        $lista = notificaciones_usuario();
+        foreach ($lista as &$x) $x['hace'] = $x['fecha'] ? hace($x['fecha']) : '';
+        json_out(['ok' => true, 'nuevas' => count(array_filter($lista, function ($x) { return $x['nueva']; })), 'data' => $lista]);
+
     default:
         json_out(['ok' => false, 'error' => 'Acción desconocida'], 400);
 }

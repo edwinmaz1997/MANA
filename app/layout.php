@@ -128,7 +128,20 @@ function layout_header($title = '', array $opt = [])
       <div class="px-4 lg:px-8 h-16 flex items-center gap-3">
         <button class="lg:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100" onclick="toggleSidebar(true)"><i data-lucide="menu" class="w-5 h-5"></i></button>
         <h1 class="text-base sm:text-lg font-semibold truncate min-w-0 flex-1"><?= e($title) ?></h1>
-        <div class="ml-auto flex items-center gap-2 shrink-0"><?= isset($opt['actions']) ? $opt['actions'] : '' ?></div>
+        <div class="ml-auto flex items-center gap-2 shrink-0"><?= isset($opt['actions']) ? $opt['actions'] : '' ?>
+          <?php if ($u): ?>
+          <div class="relative" id="notif">
+            <button type="button" class="relative btn btn-light btn-icon !p-2.5" onclick="toggleNotif()" aria-label="Notificaciones" id="notif-btn">
+              <i data-lucide="bell" class="!w-5 !h-5"></i>
+              <span id="notif-badge" class="hidden absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full bg-rose-500 text-white text-[11px] font-bold grid place-items-center ring-2 ring-white"></span>
+            </button>
+            <div id="notif-panel" class="hidden fixed sm:absolute inset-x-3 sm:inset-x-auto top-16 sm:top-12 sm:right-0 sm:w-96 z-40 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+              <div class="flex items-center px-4 py-3 border-b border-slate-100"><span class="font-semibold">Notificaciones</span><span id="notif-sub" class="ml-2 text-xs text-slate-500"></span><button type="button" class="ml-auto p-1.5 rounded-lg hover:bg-slate-100" onclick="toggleNotif(false)" aria-label="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button></div>
+              <div id="notif-list" class="max-h-[70vh] overflow-y-auto divide-y divide-slate-100"><div class="p-6 text-center text-sm text-slate-400">Cargando…</div></div>
+            </div>
+          </div>
+          <?php endif; ?>
+        </div>
       </div>
     </header>
     <main class="flex-1 px-4 lg:px-8 py-6 pb-28 lg:pb-10 max-w-[1400px] w-full mx-auto">

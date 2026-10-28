@@ -241,3 +241,49 @@ document.addEventListener('DOMContentLoaded', function () {
     openModal('<div class="p-6 text-center"><img src="assets/icons/icon-192.png" class="w-16 h-16 rounded-2xl mx-auto" alt=""><h3 class="text-lg font-semibold mt-3 !pr-0">Instalar Rutero</h3><ol class="text-left text-sm text-slate-600 mt-4 space-y-2 list-decimal pl-5">' + pasos + '</ol><button class="btn btn-primary w-full mt-5" onclick="closeModal()">Entendido</button></div>');
   };
 })();
+
+/* ---- Campanita de notificaciones ---- */
+(function () {
+  var datos = [], abierto = false;
+  var colores = { red: 'bg-rose-50 text-rose-600', yellow: 'bg-amber-50 text-amber-600', brand: 'bg-indigo-50 text-indigo-600', blue: 'bg-sky-50 text-sky-600', violet: 'bg-violet-50 text-violet-600', green: 'bg-emerald-50 text-emerald-600' };
+  function pintarBadge(n) {
+    var b = document.getElementById('notif-badge'); if (!b) return;
+    b.textContent = n > 9 ? '9+' : n; b.classList.toggle('hidden', !n);
+    var t = document.title.replace(/^\(\d+\+?\) /, ''); document.title = n ? '(' + (n > 9 ? '9+' : n) + ') ' + t : t;
+  }
+  function pintarLista() {
+    var l = document.getElementById('notif-list'); if (!l) return;
+    var nuevas = datos.filter(function (x) { return x.nueva; }).length;
+    document.getElementById('notif-sub').textContent = datos.length ? (nuevas ? nuevas + ' nueva(s)' : 'al día') : '';
+    l.innerHTML = datos.length ? datos.map(function (x) {
+      return '<a href="' + x.url + '" class="flex gap-3 px-4 py-3 hover:bg-slate-50 ' + (x.nueva ? 'bg-indigo-50/40' : '') + '">' +
+        '<span class="w-9 h-9 rounded-xl grid place-items-center shrink-0 ' + (colores[x.color] || colores.brand) + '"><i data-lucide="' + x.icono + '" class="w-4 h-4"></i></span>' +
+        '<span class="min-w-0 flex-1"><span class="flex items-start gap-2"><span class="text-sm font-semibold text-slate-800 flex-1">' + escapeHtml(x.titulo) + '</span>' + (x.nueva ? '<span class="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0"></span>' : '') + '</span>' +
+        '<span class="block text-xs text-slate-500 mt-0.5">' + escapeHtml(x.texto) + '</span>' + (x.hace ? '<span class="block text-[11px] text-slate-400 mt-1">' + escapeHtml(x.hace) + '</span>' : '') + '</span></a>';
+    }).join('') : '<div class="p-8 text-center text-sm text-slate-400"><i data-lucide="bell-off" class="w-8 h-8 mx-auto mb-2"></i>No tienes notificaciones</div>';
+    if (window.lucide) lucide.createIcons();
+  }
+  async function cargar() {
+    if (!document.getElementById('notif')) return;
+    var r = await api('index.php?p=api&a=notif');
+    if (!r || !r.ok) return;
+    datos = r.data; pintarBadge(r.nuevas);
+    if (abierto) pintarLista();
+  }
+  window.toggleNotif = function (forzar) {
+    var p = document.getElementById('notif-panel');
+    abierto = typeof forzar === 'boolean' ? forzar : p.classList.contains('hidden');
+    p.classList.toggle('hidden', !abierto);
+    if (abierto) {
+      pintarLista();
+      var claves = datos.filter(function (x) { return x.nueva; }).map(function (x) { return x.clave; });
+      if (claves.length) { api('index.php?p=api&a=notif', { claves: claves }); pintarBadge(0); }
+    } else {
+      datos.forEach(function (x) { x.nueva = false; });
+    }
+  };
+  document.addEventListener('click', function (e) {
+    if (abierto && !e.composedPath().some(function (el) { return el && el.id === 'notif'; })) toggleNotif(false);
+  });
+  document.addEventListener('DOMContentLoaded', function () { cargar(); setInterval(cargar, 60000); });
+})();

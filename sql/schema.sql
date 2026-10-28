@@ -333,6 +333,13 @@ CREATE TABLE IF NOT EXISTS liquidaciones (
   KEY (empresa_id, usuario_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS notif_vistas (
+  usuario_id INT UNSIGNED NOT NULL,
+  clave VARCHAR(120) NOT NULL,
+  visto_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (usuario_id, clave)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 INSERT IGNORE INTO planes (id, nombre, precio, duracion_dias, max_usuarios, max_clientes, descripcion) VALUES

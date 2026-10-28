@@ -11,6 +11,9 @@ function migraciones()
             "CREATE TABLE IF NOT EXISTS unidades (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, empresa_id INT UNSIGNED NOT NULL, nombre VARCHAR(40) NOT NULL, KEY (empresa_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
             "INSERT INTO unidades (empresa_id, nombre) SELECT DISTINCT empresa_id, unidad FROM productos WHERE unidad <> ''",
         ],
+        '2026_10_28_notificaciones' => [
+            "CREATE TABLE IF NOT EXISTS notif_vistas (usuario_id INT UNSIGNED NOT NULL, clave VARCHAR(120) NOT NULL, visto_at DATETIME DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (usuario_id, clave)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        ],
     ];
 }
 

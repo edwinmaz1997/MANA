@@ -254,3 +254,14 @@ function paginate($sql, array $params = [], $per = 30)
     $list = rows($sql . ' LIMIT ' . (int) $per . ' OFFSET ' . (($pg - 1) * (int) $per), $params);
     return [$list, $total, $pg, $per];
 }
+
+/** "hace 5 min", "hace 2 h", "ayer"… */
+function hace($fecha)
+{
+    $d = time() - strtotime($fecha);
+    if ($d < 60) return 'ahora';
+    if ($d < 3600) return 'hace ' . floor($d / 60) . ' min';
+    if ($d < 86400) return 'hace ' . floor($d / 3600) . ' h';
+    if ($d < 172800) return 'ayer';
+    return fdate($fecha);
+}
