@@ -170,7 +170,7 @@ function filtro_fechas($rng, array $extra = [])
     echo '<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto ' . ($rng['r'] === 'rango' ? '' : 'hidden') . '" id="rango-box">';
     echo '<input type="date" name="desde" value="' . e($rng['desde']) . '" class="input flex-1 sm:!w-auto">';
     echo '<span class="text-slate-400">a</span><input type="date" name="hasta" value="' . e($rng['hasta']) . '" class="input flex-1 sm:!w-auto">';
-    echo '<button name="r" value="rango" class="btn btn-dark">Aplicar</button></div>';
+    echo '</div>';
     echo '<span class="text-sm text-slate-500 ml-1">' . fdate($rng['desde']) . ' — ' . fdate($rng['hasta']) . '</span>';
     echo '</form>';
 }

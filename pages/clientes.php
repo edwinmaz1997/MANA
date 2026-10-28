@@ -39,9 +39,8 @@ layout_header('Clientes', ['actions' => can('clientes.crear') ? '<a href="' . ur
 ?>
 <form class="flex flex-col sm:flex-row gap-2 mb-4">
   <input type="hidden" name="p" value="clientes">
-  <div class="relative flex-1"><i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i><input name="q" value="<?= e($qstr) ?>" placeholder="Buscar por nombre, código, teléfono o DPI" class="input pl-9"></div>
+  <div class="relative flex-1"><i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i><input type="search" name="q" value="<?= e($qstr) ?>" placeholder="Buscar por nombre, código, teléfono o DPI" class="input pl-9"></div>
   <select name="area" class="select sm:w-56" onchange="this.form.submit()"><?= select_options($areas, $area, 'id', null, 'Todas las áreas') ?></select>
-  <button class="btn btn-dark">Buscar</button>
 </form>
 
 <div class="flex flex-wrap gap-3 text-xs text-slate-500 mb-3">

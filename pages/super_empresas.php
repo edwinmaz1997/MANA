@@ -84,7 +84,7 @@ $list = rows("SELECT e.*, p.nombre plan, (SELECT usuario FROM usuarios u WHERE u
 
 layout_header('Empresas', ['actions' => '<button onclick="nueva()" class="btn btn-primary"><i data-lucide="plus"></i>Nueva empresa</button>']);
 ?>
-<form class="mb-4 flex gap-2"><input type="hidden" name="p" value="super_empresas"><input name="q" value="<?= e($qstr) ?>" class="input" placeholder="Buscar empresa, NIT o teléfono"><button class="btn btn-dark">Buscar</button></form>
+<form class="mb-4 flex gap-2"><input type="hidden" name="p" value="super_empresas"><input type="search" name="q" value="<?= e($qstr) ?>" class="input" placeholder="Buscar empresa, NIT o teléfono"></form>
 <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
 <?php foreach ($list as $e):
     $m = membresia_estado($e);

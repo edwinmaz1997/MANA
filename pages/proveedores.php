@@ -25,7 +25,7 @@ $list = rows("SELECT p.*, (SELECT COALESCE(SUM(total),0) FROM compras c WHERE c.
 
 layout_header('Proveedores', ['actions' => '<button onclick="openForm(\'tpl\')" class="btn btn-primary"><i data-lucide="plus"></i>Nuevo proveedor</button>']);
 ?>
-<form class="mb-4 flex gap-2"><input type="hidden" name="p" value="proveedores"><input name="q" value="<?= e($qstr) ?>" class="input" placeholder="Buscar proveedor, NIT o teléfono"><button class="btn btn-dark">Buscar</button></form>
+<form class="mb-4 flex gap-2"><input type="hidden" name="p" value="proveedores"><input type="search" name="q" value="<?= e($qstr) ?>" class="input" placeholder="Buscar proveedor, NIT o teléfono"></form>
 <div class="card overflow-hidden"><div class="overflow-x-auto"><table class="table">
   <thead><tr><th>Proveedor</th><th>Teléfono</th><th>NIT</th><th>Dirección</th><th class="num">Compras</th><th class="num">Total comprado</th><th></th></tr></thead>
   <tbody>

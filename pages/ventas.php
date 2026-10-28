@@ -43,12 +43,11 @@ $tabs = ['' => 'Todas', 'credito' => 'Créditos', 'contado' => 'Contado'];
 </div>
 <form class="flex flex-col sm:flex-row gap-2 mb-4">
   <input type="hidden" name="p" value="ventas"><input type="hidden" name="tipo" value="<?= e($tipo) ?>"><input type="hidden" name="sem" value="<?= e($sem) ?>">
-  <input name="q" value="<?= e($qstr) ?>" class="input flex-1" placeholder="Buscar por código de venta o cliente">
+  <input type="search" name="q" value="<?= e($qstr) ?>" class="input flex-1" placeholder="Buscar por código de venta o cliente">
   <select name="estado" class="select sm:w-52">
     <?php foreach (['' => 'Todos los estados', 'activa' => 'Activas', 'pend_eng' => 'Pendiente de enganche', 'recoger' => 'Marcadas para recoger', 'pagada' => 'Pagadas', 'recogida' => 'Recogidas', 'anulada' => 'Anuladas'] as $k => $l) echo '<option value="' . $k . '"' . ($estado === $k ? ' selected' : '') . '>' . $l . '</option>'; ?>
   </select>
   <?php if ($vendedores): ?><select name="vendedor" class="select sm:w-48"><?= select_options($vendedores, $vend, 'id', 'nombre_completo', 'Todos los vendedores') ?></select><?php endif; ?>
-  <button class="btn btn-dark">Filtrar</button>
 </form>
 <div class="text-sm text-slate-500 mb-2"><?= num($total) ?> resultado(s) · Saldo pendiente: <b class="text-slate-800"><?= money($sumSaldo) ?></b></div>
 

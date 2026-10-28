@@ -89,9 +89,8 @@ layout_header('Productos', ['actions' => $admin ? '<button onclick="abrirCatalog
 ?>
 <form class="flex flex-col sm:flex-row gap-2 mb-4">
   <input type="hidden" name="p" value="productos">
-  <input name="q" value="<?= e($qstr) ?>" class="input flex-1" placeholder="Buscar por nombre o código">
+  <input type="search" name="q" value="<?= e($qstr) ?>" class="input flex-1" placeholder="Buscar por nombre o código">
   <select name="cat" class="select sm:w-56" onchange="this.form.submit()"><?= select_options($cats, $cat, 'id', null, 'Todas las categorías') ?></select>
-  <button class="btn btn-dark">Buscar</button>
 </form>
 <?php if ($admin): ?><div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"><?php stat_card('Productos', count($list), 'package', 'brand'); stat_card('Valor del inventario (costo)', money($valorInv), 'warehouse', 'green'); ?></div><?php endif; ?>
 <div class="card overflow-hidden"><div class="overflow-x-auto"><table class="table">

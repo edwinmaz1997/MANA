@@ -162,3 +162,44 @@ function autocomplete(input, box, url, render, pick) {
   });
   input.addEventListener('blur', function () { setTimeout(function () { box.classList.add('hidden'); }, 150); });
 }
+
+/* Filtros automáticos: los formularios de búsqueda (GET) se aplican solos al escribir o cambiar */
+(function () {
+  var KEY = 'mana_focus';
+  function enviar(f, el) {
+    try { if (el && el.name) sessionStorage.setItem(KEY, JSON.stringify({ url: location.search.split('&')[0], name: el.name, pos: el.selectionStart != null ? el.selectionStart : null })); } catch (e) {}
+    if (f.requestSubmit) f.requestSubmit(); else f.submit();
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('main form').forEach(function (f) {
+      if ((f.getAttribute('method') || 'get').toLowerCase() !== 'get' || f.dataset.noauto) return;
+      var t;
+      f.querySelectorAll('input[type=search], input[type=text], input:not([type])').forEach(function (inp) {
+        inp.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { enviar(f, inp); }, 500); });
+        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(t); enviar(f, inp); } });
+      });
+      f.querySelectorAll('select').forEach(function (sel) { if (!sel.getAttribute('onchange')) sel.addEventListener('change', function () { enviar(f, sel); }); });
+      f.querySelectorAll('input[type=date]').forEach(function (d) {
+        if (d.getAttribute('onchange')) return;
+        d.addEventListener('change', function () {
+          if (!d.value) return;
+          var box = d.closest('#rango-box');
+          if (box) {
+            var a = box.querySelector('input[name=desde]'), b = box.querySelector('input[name=hasta]');
+            if (!a.value || !b.value) return;
+            var h = f.querySelector('input[type=hidden][name=r]'); if (!h) { h = document.createElement('input'); h.type = 'hidden'; h.name = 'r'; f.appendChild(h); } h.value = 'rango';
+          }
+          enviar(f, d);
+        });
+      });
+    });
+    // Recuperar el cursor en el buscador después de filtrar
+    try {
+      var s = JSON.parse(sessionStorage.getItem(KEY) || 'null'); sessionStorage.removeItem(KEY);
+      if (s && s.url === location.search.split('&')[0]) {
+        var el = document.querySelector('main form [name="' + s.name + '"]');
+        if (el && (el.type === 'search' || el.type === 'text')) { el.focus(); var n = el.value.length; try { el.setSelectionRange(n, n); } catch (e) {} }
+      }
+    } catch (e) {}
+  });
+})();
