@@ -76,23 +76,23 @@ $cat = (int) get('cat', 0);
 $params = [$eid]; $w = '';
 if ($qstr !== '') { $w .= ' AND (p.nombre LIKE ? OR p.codigo LIKE ?)'; $l = "%$qstr%"; array_push($params, $l, $l); }
 if ($cat) { $w .= ' AND p.categoria_id=?'; $params[] = $cat; }
-$list = rows("SELECT p.*, c.nombre categoria FROM productos p LEFT JOIN categorias c ON c.id=p.categoria_id WHERE p.empresa_id=? AND p.activo=1 $w ORDER BY p.nombre", $params);
+list($list, $nTot, $pg, $per) = paginate("SELECT p.*, c.nombre categoria FROM productos p LEFT JOIN categorias c ON c.id=p.categoria_id WHERE p.empresa_id=? AND p.activo=1 $w ORDER BY p.nombre", $params);
 $cats = rows('SELECT c.id, c.nombre, (SELECT COUNT(*) FROM productos p WHERE p.categoria_id=c.id AND p.activo=1) usos FROM categorias c WHERE c.empresa_id=? ORDER BY c.nombre', [$eid]);
 if (!val('SELECT COUNT(*) FROM unidades WHERE empresa_id=?', [$eid])) {
     foreach (['Unidad', 'Juego', 'Par', 'Caja', 'Docena', 'Paquete', 'Metro', 'Libra'] as $un) insert('unidades', ['empresa_id' => $eid, 'nombre' => $un]);
 }
 $unis = rows('SELECT u.id, u.nombre, (SELECT COUNT(*) FROM productos p WHERE p.empresa_id=u.empresa_id AND p.unidad=u.nombre AND p.activo=1) usos FROM unidades u WHERE u.empresa_id=? ORDER BY u.nombre', [$eid]);
-$valorInv = array_sum(array_map(function ($p) { return $p['stock'] * $p['precio_compra']; }, $list));
+$valorInv = (float) val("SELECT COALESCE(SUM(p.stock * p.precio_compra),0) FROM productos p WHERE p.empresa_id=? AND p.activo=1 $w", $params);
 $admin = is_admin();
 
-layout_header('Productos', ['actions' => $admin ? '<button onclick="abrirCatalogos()" class="btn btn-light"><i data-lucide="tags"></i><span class="hidden sm:inline">Categorías y unidades</span></button><button onclick="nuevoProducto()" class="btn btn-primary"><i data-lucide="plus"></i><span class="hidden sm:inline">Nuevo producto</span></button>' : '']);
+layout_header('Productos', ['actions' => $admin ? '<a href="' . url('importar', ['tipo' => 'productos']) . '" class="btn btn-light" title="Carga masiva"><i data-lucide="upload"></i><span class="hidden sm:inline">Carga masiva</span></a><button onclick="abrirCatalogos()" class="btn btn-light"><i data-lucide="tags"></i><span class="hidden sm:inline">Categorías y unidades</span></button><button onclick="nuevoProducto()" class="btn btn-primary"><i data-lucide="plus"></i><span class="hidden sm:inline">Nuevo producto</span></button>' : '']);
 ?>
 <form class="flex flex-col sm:flex-row gap-2 mb-4">
   <input type="hidden" name="p" value="productos">
   <input type="search" name="q" value="<?= e($qstr) ?>" class="input flex-1" placeholder="Buscar por nombre o código">
   <select name="cat" class="select sm:w-56" onchange="this.form.submit()"><?= select_options($cats, $cat, 'id', null, 'Todas las categorías') ?></select>
 </form>
-<?php if ($admin): ?><div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"><?php stat_card('Productos', count($list), 'package', 'brand'); stat_card('Valor del inventario (costo)', money($valorInv), 'warehouse', 'green'); ?></div><?php endif; ?>
+<?php if ($admin): ?><div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"><?php stat_card('Productos', num($nTot), 'package', 'brand'); stat_card('Valor del inventario (costo)', money($valorInv), 'warehouse', 'green'); ?></div><?php endif; ?>
 <div class="card overflow-hidden"><div class="overflow-x-auto"><table class="table">
   <thead><tr><th>Producto</th><th>Categoría</th><?php if ($admin): ?><th class="num">Compra</th><th class="num">Comisión</th><?php endif; ?><th class="num">Venta</th><th class="num">Contado</th><th class="num">Crédito</th><th class="num">Stock</th><th></th></tr></thead>
   <tbody>
@@ -108,7 +108,7 @@ layout_header('Productos', ['actions' => $admin ? '<button onclick="abrirCatalog
       <td class="text-right"><?php if ($admin): $j = $p; $j['categoria'] = $p['categoria']; ?><button class="btn btn-light btn-sm" onclick='editarProducto(<?= e(json_encode($j)) ?>)'>Editar</button><?php endif; ?></td>
     </tr>
   <?php endforeach; ?>
-  </tbody></table><?php if (!$list) echo empty_state('Sin productos', 'package'); ?></div></div>
+  </tbody></table><?php if (!$list) echo empty_state('Sin productos', 'package'); ?></div><?= pager($nTot, $per, $pg) ?></div>
 
 <?php if ($admin): ?>
 <div id="tpl" class="hidden">

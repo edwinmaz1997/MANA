@@ -7,9 +7,9 @@ $usr = is_admin() ? (int) get('usuario', 0) : uid();
 
 $w = 'a.empresa_id=? AND a.anulado=0 AND DATE(a.fecha) BETWEEN ? AND ?'; $params = [$eid, $rng['desde'], $rng['hasta']];
 if ($usr) { $w .= ' AND a.usuario_id=?'; $params[] = $usr; }
-$list = rows("SELECT a.*, v.codigo, c.nombre, c.apellido, u.nombre usuario FROM abonos a JOIN ventas v ON v.id=a.venta_id LEFT JOIN clientes c ON c.id=a.cliente_id LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE $w ORDER BY a.fecha DESC LIMIT 500", $params);
-$tot = array_sum(array_column($list, 'monto'));
-$com = array_sum(array_column($list, 'comision_monto'));
+list($list, $nTot, $pg, $per) = paginate("SELECT a.*, v.codigo, c.nombre, c.apellido, u.nombre usuario FROM abonos a JOIN ventas v ON v.id=a.venta_id LEFT JOIN clientes c ON c.id=a.cliente_id LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE $w ORDER BY a.fecha DESC", $params);
+$sum = row("SELECT COALESCE(SUM(a.monto),0) t, COALESCE(SUM(a.comision_monto),0) c FROM abonos a WHERE $w", $params);
+$tot = (float) $sum['t']; $com = (float) $sum['c'];
 $usuarios = is_admin() ? rows('SELECT id, nombre, apellido FROM usuarios WHERE empresa_id=? ORDER BY nombre', [$eid]) : [];
 
 layout_header('Cobros');
@@ -28,7 +28,7 @@ layout_header('Cobros');
 <?php endif; ?>
 
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-  <?php stat_card('Total cobrado', money($tot), 'hand-coins', 'green', count($list) . ' pago(s)'); ?>
+  <?php stat_card('Total cobrado', money($tot), 'hand-coins', 'green', num($nTot) . ' pago(s)'); ?>
   <?php stat_card('Comisiones', money($com), 'percent', 'violet'); ?>
   <?php stat_card('Neto a entregar', money($tot - $com), 'banknote', 'brand'); ?>
 </div>
@@ -42,7 +42,7 @@ layout_header('Cobros');
       <td><?= $a['liquidacion_id'] ? '<span class="badge badge-green">Entregado</span>' : '<span class="badge badge-yellow">Por entregar</span>' ?></td>
       <td><a href="ticket.php?tipo=abono&id=<?= $a['id'] ?>" target="_blank" class="btn btn-ghost btn-icon"><i data-lucide="printer"></i></a></td></tr>
   <?php endforeach; ?>
-  </tbody></table><?php if (!$list) echo empty_state('Sin cobros en este periodo', 'coins'); ?></div></div>
+  </tbody></table><?php if (!$list) echo empty_state('Sin cobros en este periodo', 'coins'); ?></div><?= pager($nTot, $per, $pg) ?></div>
 
 <script>
 (function () {

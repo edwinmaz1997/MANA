@@ -47,7 +47,7 @@ if (is_post()) {
 }
 
 $rng = rango_fechas();
-$list = rows('SELECT c.*, p.nombre prov, p.apellido prov_ap, (SELECT COUNT(*) FROM compra_detalle d WHERE d.compra_id=c.id) items FROM compras c LEFT JOIN proveedores p ON p.id=c.proveedor_id WHERE c.empresa_id=? AND c.fecha BETWEEN ? AND ? ORDER BY c.fecha DESC, c.id DESC', [$eid, $rng['desde'], $rng['hasta']]);
+list($list, $nTot, $pg, $per) = paginate('SELECT c.*, p.nombre prov, p.apellido prov_ap, (SELECT COUNT(*) FROM compra_detalle d WHERE d.compra_id=c.id) items FROM compras c LEFT JOIN proveedores p ON p.id=c.proveedor_id WHERE c.empresa_id=? AND c.fecha BETWEEN ? AND ? ORDER BY c.fecha DESC, c.id DESC', [$eid, $rng['desde'], $rng['hasta']]);
 $provs = rows('SELECT id, nombre, apellido FROM proveedores WHERE empresa_id=? AND activo=1 ORDER BY nombre', [$eid]);
 $ver = (int) get('ver');
 $detalle = $ver ? rows('SELECT d.*, p.nombre FROM compra_detalle d JOIN productos p ON p.id=d.producto_id JOIN compras c ON c.id=d.compra_id WHERE d.compra_id=? AND c.empresa_id=?', [$ver, $eid]) : [];
@@ -55,7 +55,7 @@ $detalle = $ver ? rows('SELECT d.*, p.nombre FROM compra_detalle d JOIN producto
 layout_header('Compras', ['actions' => '<button onclick="nuevaCompra()" class="btn btn-primary"><i data-lucide="plus"></i>Nueva compra</button>']);
 filtro_fechas($rng);
 ?>
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"><?php stat_card('Total comprado', money(array_sum(array_column($list, 'total'))), 'truck', 'brand', count($list) . ' compra(s)'); ?></div>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"><?php stat_card('Total comprado', money(val('SELECT COALESCE(SUM(total),0) FROM compras WHERE empresa_id=? AND fecha BETWEEN ? AND ?', [$eid, $rng['desde'], $rng['hasta']])), 'truck', 'brand', num($nTot) . ' compra(s)'); ?></div>
 <div class="card overflow-hidden"><div class="overflow-x-auto"><table class="table">
   <thead><tr><th>Fecha</th><th>Proveedor</th><th>Factura</th><th class="num">Productos</th><th class="num">Total</th><th></th></tr></thead>
   <tbody>
@@ -67,7 +67,7 @@ filtro_fechas($rng);
       <tr><td colspan="6" class="bg-slate-50"><table class="w-full text-sm"><?php foreach ($detalle as $d): ?><tr><td class="py-1"><?= e($d['nombre']) ?></td><td class="text-right"><?= num($d['cantidad'], 2) ?> x <?= money($d['costo_unitario']) ?></td><td class="text-right font-semibold w-32"><?= money($d['subtotal']) ?></td></tr><?php endforeach; ?></table><?php if ($c['notas']) echo '<div class="text-xs text-slate-500 mt-2">' . e($c['notas']) . '</div>'; ?></td></tr>
     <?php endif; ?>
   <?php endforeach; ?>
-  </tbody></table><?php if (!$list) echo empty_state('Sin compras en este periodo', 'truck'); ?></div></div>
+  </tbody></table><?php if (!$list) echo empty_state('Sin compras en este periodo', 'truck'); ?></div><?= pager($nTot, $per, $pg) ?></div>
 
 <div id="tpl" class="hidden">
   <form method="post" class="p-5 sm:p-6 space-y-4" id="fcompra"><?= csrf_field() ?>

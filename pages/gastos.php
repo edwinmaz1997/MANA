@@ -17,9 +17,9 @@ if (is_post()) {
     redirect(url('gastos', ['r' => get('r', 'mes')]));
 }
 $rng = rango_fechas();
-$list = rows('SELECT g.*, u.nombre usuario FROM gastos g LEFT JOIN usuarios u ON u.id=g.usuario_id WHERE g.empresa_id=? AND g.fecha BETWEEN ? AND ? ORDER BY g.fecha DESC, g.id DESC', [$eid, $rng['desde'], $rng['hasta']]);
+list($list, $nTot, $pg, $per) = paginate('SELECT g.*, u.nombre usuario FROM gastos g LEFT JOIN usuarios u ON u.id=g.usuario_id WHERE g.empresa_id=? AND g.fecha BETWEEN ? AND ? ORDER BY g.fecha DESC, g.id DESC', [$eid, $rng['desde'], $rng['hasta']]);
 $porCat = rows('SELECT categoria, SUM(monto) t FROM gastos WHERE empresa_id=? AND fecha BETWEEN ? AND ? GROUP BY categoria ORDER BY t DESC', [$eid, $rng['desde'], $rng['hasta']]);
-$total = array_sum(array_column($list, 'monto'));
+$total = (float) val('SELECT COALESCE(SUM(monto),0) FROM gastos WHERE empresa_id=? AND fecha BETWEEN ? AND ?', [$eid, $rng['desde'], $rng['hasta']]);
 $cats = array_column(rows('SELECT DISTINCT categoria FROM gastos WHERE empresa_id=? ORDER BY categoria', [$eid]), 'categoria');
 $cats = array_unique(array_merge(['General', 'Combustible', 'Alquiler', 'Servicios', 'Sueldos', 'Mantenimiento', 'Publicidad'], $cats));
 
@@ -28,7 +28,7 @@ filtro_fechas($rng);
 ?>
 <div class="grid lg:grid-cols-4 gap-4">
   <div class="space-y-4">
-    <?php stat_card('Total gastos', money($total), 'wallet', 'red', count($list) . ' registro(s)'); ?>
+    <?php stat_card('Total gastos', money($total), 'wallet', 'red', num($nTot) . ' registro(s)'); ?>
     <div class="card"><div class="card-h">Por categoría</div><div class="p-4 space-y-2 text-sm">
       <?php foreach ($porCat as $c): $pct = $total > 0 ? $c['t'] / $total * 100 : 0; ?>
         <div><div class="flex justify-between"><span><?= e($c['categoria']) ?></span><span class="font-semibold"><?= money($c['t']) ?></span></div><div class="h-1.5 bg-slate-100 rounded mt-1"><div class="h-1.5 bg-rose-400 rounded" style="width:<?= round($pct) ?>%"></div></div></div>
@@ -40,7 +40,7 @@ filtro_fechas($rng);
     <tbody><?php foreach ($list as $g): ?>
       <tr><td><?= fdate($g['fecha']) ?></td><td><span class="badge badge-gray"><?= e($g['categoria']) ?></span></td><td><?= e($g['descripcion']) ?></td><td><?= e($g['usuario']) ?></td><td class="num font-semibold"><?= money($g['monto']) ?></td>
       <td class="text-right"><button class="btn btn-light btn-sm" onclick='openForm("tpl", <?= e(json_encode($g)) ?>)'>Editar</button></td></tr>
-    <?php endforeach; ?></tbody></table><?php if (!$list) echo empty_state('Sin gastos en este periodo', 'wallet'); ?></div></div>
+    <?php endforeach; ?></tbody></table><?php if (!$list) echo empty_state('Sin gastos en este periodo', 'wallet'); ?></div><?= pager($nTot, $per, $pg) ?></div>
 </div>
 
 <div id="tpl" class="hidden">

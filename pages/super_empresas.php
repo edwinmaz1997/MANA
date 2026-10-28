@@ -78,7 +78,7 @@ if (is_post()) {
 $qstr = get('q', '');
 $params = []; $w = '1=1';
 if ($qstr !== '') { $w = '(e.nombre LIKE ? OR e.nit LIKE ? OR e.telefono LIKE ?)'; $l = "%$qstr%"; $params = [$l, $l, $l]; }
-$list = rows("SELECT e.*, p.nombre plan, (SELECT usuario FROM usuarios u WHERE u.empresa_id=e.id AND u.rol='admin' ORDER BY u.id LIMIT 1) admin_usuario,
+list($list, $nTot, $pg, $per) = paginate("SELECT e.*, p.nombre plan, (SELECT usuario FROM usuarios u WHERE u.empresa_id=e.id AND u.rol='admin' ORDER BY u.id LIMIT 1) admin_usuario,
   (SELECT COUNT(*) FROM usuarios u WHERE u.empresa_id=e.id AND u.activo=1) usuarios, (SELECT COUNT(*) FROM clientes c WHERE c.empresa_id=e.id AND c.activo=1) clientes
   FROM empresas e LEFT JOIN planes p ON p.id=e.plan_id WHERE $w ORDER BY e.id DESC", $params);
 
@@ -113,6 +113,7 @@ layout_header('Empresas', ['actions' => '<button onclick="nueva()" class="btn bt
 <?php endforeach; ?>
 </div>
 <?php if (!$list) echo '<div class="card">' . empty_state('Aún no hay empresas', 'building-2') . '</div>'; ?>
+<?php if ($nTot > $per): ?><div class="card mt-4"><?= pager($nTot, $per, $pg) ?></div><?php endif; ?>
 
 <div id="tpl" class="hidden">
   <form method="post" class="p-6 space-y-4" autocomplete="off"><?= csrf_field() ?><input type="hidden" name="accion" value="guardar"><input type="hidden" name="id">

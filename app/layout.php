@@ -214,13 +214,21 @@ function empty_state($msg, $icon = 'inbox')
 function pager($total, $per, $pageNum)
 {
     $pages = (int) ceil($total / $per);
-    if ($pages <= 1) return '';
+    if ($pages <= 1) return $total > 0 ? '<div class="px-4 py-3 border-t border-slate-100 text-sm text-slate-500">' . num($total) . ' registro(s)</div>' : '';
     $q = $_GET;
-    $h = '<div class="flex items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 text-sm"><span class="text-slate-500">' . num($total) . ' registros</span><div class="flex gap-1">';
-    for ($i = max(1, $pageNum - 2); $i <= min($pages, $pageNum + 2); $i++) {
-        $q['pg'] = $i;
-        $h .= '<a href="index.php?' . e(http_build_query($q)) . '" class="px-3 py-1.5 rounded-lg ' . ($i === $pageNum ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 hover:bg-slate-50') . '">' . $i . '</a>';
-    }
+    $link = function ($n, $label, $active = false, $disabled = false) use (&$q) {
+        if ($disabled) return '<span class="min-w-9 h-9 px-2 grid place-items-center rounded-lg text-slate-300">' . $label . '</span>';
+        $q['pg'] = $n;
+        return '<a href="index.php?' . e(http_build_query($q)) . '" class="min-w-9 h-9 px-2 grid place-items-center rounded-lg ' . ($active ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 hover:bg-slate-50') . '">' . $label . '</a>';
+    };
+    $desde = ($pageNum - 1) * $per + 1; $hasta = min($total, $pageNum * $per);
+    $h = '<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-sm"><span class="text-slate-500">' . num($desde) . '–' . num($hasta) . ' de ' . num($total) . '</span><div class="flex items-center gap-1">';
+    $h .= $link($pageNum - 1, '‹', false, $pageNum <= 1);
+    $ini = max(1, $pageNum - 1); $fin = min($pages, $pageNum + 1);
+    if ($ini > 1) { $h .= $link(1, '1'); if ($ini > 2) $h .= '<span class="px-1 text-slate-400">…</span>'; }
+    for ($i = $ini; $i <= $fin; $i++) $h .= $link($i, (string) $i, $i === $pageNum);
+    if ($fin < $pages) { if ($fin < $pages - 1) $h .= '<span class="px-1 text-slate-400">…</span>'; $h .= $link($pages, (string) $pages); }
+    $h .= $link($pageNum + 1, '›', false, $pageNum >= $pages);
     return $h . '</div></div>';
 }
 

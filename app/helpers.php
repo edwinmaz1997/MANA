@@ -244,3 +244,13 @@ function asset($path)
     $f = APP_ROOT . '/' . $path;
     return $path . '?v=' . (is_file($f) ? filemtime($f) : APP_VERSION);
 }
+
+/** Paginación: devuelve [filas, total, página actual, por página] */
+function paginate($sql, array $params = [], $per = 30)
+{
+    $total = (int) val('SELECT COUNT(*) FROM (' . $sql . ') t__', $params);
+    $pages = max(1, (int) ceil($total / $per));
+    $pg = min(max(1, (int) get('pg', 1)), $pages);
+    $list = rows($sql . ' LIMIT ' . (int) $per . ' OFFSET ' . (($pg - 1) * (int) $per), $params);
+    return [$list, $total, $pg, $per];
+}

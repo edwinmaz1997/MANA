@@ -7,12 +7,27 @@ $D = $rng['desde']; $H = $rng['hasta'];
 $tabs = ['ventas' => ['Ventas', 'trending-up'], 'clientes' => ['Clientes', 'users'], 'productos' => ['Productos', 'package'], 'creditos' => ['Créditos', 'wallet'], 'compras' => ['Compras', 'truck'], 'rutas' => ['Rutas / Áreas', 'map'], 'empleados' => ['Empleados', 'badge-dollar-sign']];
 if (!isset($tabs[$tab])) $tab = 'ventas';
 
-layout_header('Reportes', ['charts' => true, 'actions' => '<button onclick="window.print()" class="btn btn-light"><i data-lucide="printer"></i><span class="hidden sm:inline">Imprimir</span></button>']);
+// Descarga CSV
+$extras = ['ventas' => [], 'clientes' => [], 'productos' => ['inventario' => 'Inventario'], 'creditos' => ['abonos' => 'Pagos del periodo'], 'compras' => ['gastos' => 'Gastos'], 'rutas' => ['visitas' => 'Visitas'], 'empleados' => []];
+if ($csv = get('csv')) {
+    require_once APP_ROOT . '/app/reportes_csv.php';
+    if ($csv === '1') $csv = $tab;
+    if ($csv === $tab || isset($extras[$tab][$csv])) reporte_csv($csv, $D, $H);
+}
+$qs = ['t' => $tab, 'r' => $rng['r'], 'desde' => $D, 'hasta' => $H];
+$csvBtn = '<a href="' . e(url('reportes', $qs + ['csv' => 1])) . '" class="btn btn-success"><i data-lucide="download"></i><span class="hidden sm:inline">Descargar CSV</span></a>';
+
+layout_header('Reportes', ['charts' => true, 'actions' => $csvBtn . '<button onclick="window.print()" class="btn btn-light hidden sm:inline-flex"><i data-lucide="printer"></i><span class="hidden sm:inline">Imprimir</span></button>']);
 ?>
 <div class="tabs mb-4">
-  <?php foreach ($tabs as $k => $t): ?><a href="<?= url('reportes', ['t' => $k, 'r' => $rng['r'], 'desde' => $D, 'hasta' => $H]) ?>" class="tab <?= $tab === $k ? 'active' : '' ?>"><i data-lucide="<?= $t[1] ?>" class="w-4 h-4 inline -mt-0.5"></i> <?= $t[0] ?></a><?php endforeach; ?>
+  <?php foreach ($tabs as $k => $t): ?><a href="<?= url('reportes', ['t' => $k, 'r' => $rng['r'], 'desde' => $D, 'hasta' => $H]) ?>" class="tab <?= $tab === $k ? 'active' : '' ?>"><i data-lucide="<?= $t[1] ?>"></i><?= $t[0] ?></a><?php endforeach; ?>
 </div>
 <?php filtro_fechas($rng, ['t' => $tab]); ?>
+<?php if ($extras[$tab]): ?>
+<div class="flex flex-wrap items-center gap-2 -mt-2 mb-4 text-sm"><span class="text-slate-500">Más descargas:</span>
+  <?php foreach ($extras[$tab] as $k => $l): ?><a href="<?= e(url('reportes', $qs + ['csv' => $k])) ?>" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"><i data-lucide="file-down" class="w-4 h-4 text-emerald-600"></i><?= e($l) ?> (CSV)</a><?php endforeach; ?>
+</div>
+<?php endif; ?>
 <script>
 Chart.defaults.font.family = 'Inter, system-ui, sans-serif'; Chart.defaults.color = '#64748b';
 function fmtQ(v) { return money(v); }

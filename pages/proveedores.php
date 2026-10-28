@@ -20,7 +20,7 @@ $qstr = get('q', '');
 $params = [$eid];
 $w = '';
 if ($qstr !== '') { $w = ' AND (p.nombre LIKE ? OR p.apellido LIKE ? OR p.nit LIKE ? OR p.telefono LIKE ?)'; $l = "%$qstr%"; array_push($params, $l, $l, $l, $l); }
-$list = rows("SELECT p.*, (SELECT COALESCE(SUM(total),0) FROM compras c WHERE c.proveedor_id=p.id) comprado, (SELECT COUNT(*) FROM compras c WHERE c.proveedor_id=p.id) compras
+list($list, $nTot, $pg, $per) = paginate("SELECT p.*, (SELECT COALESCE(SUM(total),0) FROM compras c WHERE c.proveedor_id=p.id) comprado, (SELECT COUNT(*) FROM compras c WHERE c.proveedor_id=p.id) compras
   FROM proveedores p WHERE p.empresa_id=? AND p.activo=1 $w ORDER BY p.nombre", $params);
 
 layout_header('Proveedores', ['actions' => '<button onclick="openForm(\'tpl\')" class="btn btn-primary"><i data-lucide="plus"></i>Nuevo proveedor</button>']);
@@ -33,7 +33,7 @@ layout_header('Proveedores', ['actions' => '<button onclick="openForm(\'tpl\')" 
     <tr><td class="font-semibold"><?= e(nombre_completo($p)) ?></td><td><?= e($p['telefono']) ?></td><td><?= e($p['nit']) ?></td><td class="max-w-xs truncate"><?= e($p['direccion']) ?></td><td class="num"><?= (int) $p['compras'] ?></td><td class="num font-semibold"><?= money($p['comprado']) ?></td>
       <td class="text-right"><button class="btn btn-light btn-sm" onclick='openForm("tpl", <?= e(json_encode($p)) ?>)'>Editar</button></td></tr>
   <?php endforeach; ?>
-  </tbody></table><?php if (!$list) echo empty_state('Sin proveedores', 'factory'); ?></div></div>
+  </tbody></table><?php if (!$list) echo empty_state('Sin proveedores', 'factory'); ?></div><?= pager($nTot, $per, $pg) ?></div>
 
 <div id="tpl" class="hidden">
   <form method="post" class="p-6 space-y-4">

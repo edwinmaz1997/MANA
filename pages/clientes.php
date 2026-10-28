@@ -35,7 +35,7 @@ if ($list) {
 }
 $areas = rows('SELECT id, nombre FROM areas WHERE empresa_id=? AND activo=1 ORDER BY nombre', [$eid]);
 
-layout_header('Clientes', ['actions' => can('clientes.crear') ? '<a href="' . url('cliente_form') . '" class="btn btn-primary"><i data-lucide="user-plus"></i><span class="hidden sm:inline">Nuevo cliente</span></a>' : '']);
+layout_header('Clientes', ['actions' => (is_admin() ? '<a href="' . url('importar', ['tipo' => 'clientes']) . '" class="btn btn-light" title="Carga masiva"><i data-lucide="upload"></i><span class="hidden sm:inline">Carga masiva</span></a>' : '') . (can('clientes.crear') ? '<a href="' . url('cliente_form') . '" class="btn btn-primary"><i data-lucide="user-plus"></i><span class="hidden sm:inline">Nuevo cliente</span></a>' : '')]);
 ?>
 <form class="flex flex-col sm:flex-row gap-2 mb-4">
   <input type="hidden" name="p" value="clientes">
