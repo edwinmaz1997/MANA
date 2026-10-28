@@ -40,8 +40,8 @@ if (is_post()) {
     }
 }
 
-// La ruta del día se crea automáticamente al abrirla
-if ($fecha === today() && ($cob['rol'] === 'cobrador' || is_admin())) {
+// La ruta se crea/sincroniza automáticamente al abrirla (hoy o fechas futuras)
+if ($fecha >= today()) {
     generar_ruta($cobId, $fecha); // solo agrega los créditos que faltan (ventas nuevas, cuotas de hoy, atrasadas)
 }
 $ruta = row('SELECT * FROM rutas WHERE empresa_id=? AND fecha=? AND cobrador_id=?', [$eid, $fecha, $cobId]);
@@ -63,7 +63,7 @@ $pend = count(array_filter($visitas, function ($x) { return $x['estado'] === 'pe
 $hechas = count($visitas) - $pend;
 $pctV = count($visitas) ? round($hechas / count($visitas) * 100) : 0;
 
-layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi ruta', ['actions' =>
+layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi ruta', ['actions' => $fecha < today() ? '' :
     '<form method="post">' . csrf_field() . '<input type="hidden" name="accion" value="generar"><button class="btn btn-light" title="Agregar créditos que tocan hoy"><i data-lucide="refresh-cw"></i><span class="hidden sm:inline">Actualizar ruta</span></button></form>']);
 ?>
 <div class="flex flex-wrap items-center gap-2 mb-4">

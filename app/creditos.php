@@ -210,51 +210,72 @@ function resumen_cobrador($usuario_id, $desde, $hasta)
 
 /* ---------- Rutas ---------- */
 
-/** Crea (o completa) la ruta del día de un cobrador con los créditos que toca visitar */
+/**
+ * Crea o sincroniza la ruta de un cobrador para una fecha (hoy o futura).
+ * - Agrega los créditos que tocan: cuota vencida o que vence ese día, enganche pendiente,
+ *   visita agendada para ese día y (solo hoy) las visitas pendientes de días anteriores.
+ * - Quita las visitas pendientes que ya no corresponden (pagadas, reagendadas a otra fecha, etc.).
+ * Las rutas de días pasados no se modifican.
+ */
 function generar_ruta($cobrador_id, $fecha)
 {
     $eid = eid();
+    $hoy = today();
     $ruta = row('SELECT * FROM rutas WHERE empresa_id=? AND fecha=? AND cobrador_id=?', [$eid, $fecha, $cobrador_id]);
+    if ($fecha < $hoy) return [$ruta ? (int) $ruta['id'] : 0, 0];
     $rid = $ruta ? (int) $ruta['id'] : insert('rutas', ['empresa_id' => $eid, 'fecha' => $fecha, 'cobrador_id' => $cobrador_id]);
 
-    // Visitas atrasadas: pendientes de rutas anteriores del mismo cobrador
-    $atrasadas = rows("SELECT rv.id, rv.venta_id, rv.fecha_programada FROM ruta_visitas rv JOIN rutas r ON r.id=rv.ruta_id
-        WHERE r.empresa_id=? AND r.cobrador_id=? AND r.fecha < ? AND rv.estado='pendiente'", [$eid, $cobrador_id, $fecha]);
+    // Solo la ruta de hoy hereda las visitas pendientes de días anteriores
     $carry = [];
-    foreach ($atrasadas as $a) {
-        update('ruta_visitas', ['estado' => 'reprogramada'], 'id=?', [$a['id']]);
-        $carry[$a['venta_id']] = $a['fecha_programada'];
+    if ($fecha === $hoy) {
+        $atrasadas = rows("SELECT rv.id, rv.venta_id, rv.fecha_programada FROM ruta_visitas rv JOIN rutas r ON r.id=rv.ruta_id
+            WHERE r.empresa_id=? AND r.cobrador_id=? AND r.fecha < ? AND rv.estado='pendiente'", [$eid, $cobrador_id, $hoy]);
+        foreach ($atrasadas as $a) {
+            update('ruta_visitas', ['estado' => 'reprogramada'], 'id=?', [$a['id']]);
+            if (!isset($carry[$a['venta_id']]) || $a['fecha_programada'] < $carry[$a['venta_id']]) $carry[$a['venta_id']] = $a['fecha_programada'];
+        }
     }
 
-    $ya = array_flip(array_column(rows('SELECT venta_id FROM ruta_visitas WHERE ruta_id=?', [$rid]), 'venta_id'));
-    $cands = rows("SELECT v.id, v.cliente_id, c.area_id, a.nombre area, c.nombre, v.fecha_enganche, v.enganche_monto, v.proxima_visita,
+    // Qué créditos deben estar en la ruta
+    $debe = [];
+    $cands = rows("SELECT v.id, v.cliente_id, c.area_id, v.fecha_enganche, v.enganche_monto, v.proxima_visita,
             (SELECT MIN(cu.fecha_vencimiento) FROM cuotas cu WHERE cu.venta_id=v.id AND cu.estado<>'pagada') prox
         FROM ventas v JOIN clientes c ON c.id=v.cliente_id JOIN areas a ON a.id=c.area_id
         WHERE v.empresa_id=? AND v.tipo='credito' AND v.estado='activa' AND a.cobrador_id=? AND a.activo=1
         ORDER BY a.nombre, c.nombre", [$eid, $cobrador_id]);
-    $orden = (int) val('SELECT COALESCE(MAX(orden),0) FROM ruta_visitas WHERE ruta_id=?', [$rid]);
-    $n = 0;
     foreach ($cands as $c) {
-        if (isset($ya[$c['id']])) continue;
+        $vid = (int) $c['id'];
         $pendEng = !$c['fecha_enganche'] && $c['enganche_monto'] > 0;
         $pv = $c['proxima_visita'];
-        if ($pv && $pv > $fecha && !isset($carry[$c['id']])) continue; // el cobrador agendó regresar otro día
-        $toca = $pendEng || ($c['prox'] && $c['prox'] <= $fecha) || isset($carry[$c['id']]) || ($pv && $pv <= $fecha);
-        if (!$toca) continue;
-        $prog = isset($carry[$c['id']]) && $carry[$c['id']] ? $carry[$c['id']] : ($pv ?: ($c['prox'] ?: $fecha));
-        insert('ruta_visitas', [
-            'ruta_id' => $rid, 'venta_id' => $c['id'], 'cliente_id' => $c['cliente_id'], 'area_id' => $c['area_id'],
-            'orden' => ++$orden, 'fecha_programada' => $prog,
-            'atrasada' => (isset($carry[$c['id']]) || $prog < $fecha) ? 1 : 0,
-        ]);
-        $n++;
+        if (isset($carry[$vid])) { $debe[$vid] = [$c, $carry[$vid] ?: $fecha, 1]; continue; }
+        if ($pv && $pv > $fecha) continue; // el cobrador agendó regresar otro día
+        if ($pendEng || ($c['prox'] && $c['prox'] <= $fecha) || ($pv && $pv <= $fecha)) {
+            $prog = $pv ?: ($c['prox'] ?: $fecha);
+            $debe[$vid] = [$c, $prog, $prog < $fecha ? 1 : 0];
+        }
     }
-    // Pendientes de rutas viejas cuyo crédito ya no está en las áreas del cobrador: igual se agregan
+    // Pendientes heredadas cuyo crédito ya no está en las áreas del cobrador
     foreach ($carry as $vid => $prog) {
-        if (isset($ya[$vid]) || val('SELECT id FROM ruta_visitas WHERE ruta_id=? AND venta_id=?', [$rid, $vid])) continue;
+        if (isset($debe[$vid])) continue;
         $v = row("SELECT v.id, v.cliente_id, c.area_id FROM ventas v LEFT JOIN clientes c ON c.id=v.cliente_id WHERE v.id=? AND v.estado='activa'", [$vid]);
-        if (!$v) continue;
-        insert('ruta_visitas', ['ruta_id' => $rid, 'venta_id' => $vid, 'cliente_id' => $v['cliente_id'], 'area_id' => $v['area_id'], 'orden' => ++$orden, 'fecha_programada' => $prog ?: $fecha, 'atrasada' => 1]);
+        if ($v) $debe[$vid] = [$v, $prog ?: $fecha, 1];
+    }
+
+    // Sincronizar
+    $existentes = [];
+    foreach (rows('SELECT id, venta_id, estado FROM ruta_visitas WHERE ruta_id=?', [$rid]) as $r) $existentes[(int) $r['venta_id']] = $r;
+    foreach ($existentes as $vid => $r) {
+        if ($r['estado'] === 'pendiente' && !isset($debe[$vid])) q('DELETE FROM ruta_visitas WHERE id=?', [$r['id']]);
+    }
+    $orden = (int) val('SELECT COALESCE(MAX(orden),0) FROM ruta_visitas WHERE ruta_id=?', [$rid]);
+    $n = 0;
+    foreach ($debe as $vid => $d) {
+        if (isset($existentes[$vid])) continue;
+        list($c, $prog, $atr) = $d;
+        insert('ruta_visitas', [
+            'ruta_id' => $rid, 'venta_id' => $vid, 'cliente_id' => $c['cliente_id'], 'area_id' => $c['area_id'],
+            'orden' => ++$orden, 'fecha_programada' => $prog, 'atrasada' => $atr,
+        ]);
         $n++;
     }
     return [$rid, $n];
