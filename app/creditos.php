@@ -341,3 +341,50 @@ function replanificar_cuotas($venta_id)
     }
     recalcular_venta($venta_id);
 }
+
+/** ¿El usuario actual puede editar este pago? (quien lo registró o el admin, y que no esté entregado) */
+function puede_editar_abono(array $a)
+{
+    if ($a['anulado'] || $a['liquidacion_id']) return false;
+    return is_admin() || (int) $a['usuario_id'] === uid();
+}
+
+/** Corrige el monto / método / nota de un pago y recalcula el crédito */
+function editar_abono($abono_id, $monto, $metodo, $nota, $motivo)
+{
+    $a = row('SELECT * FROM abonos WHERE id = ? AND empresa_id = ?', [$abono_id, eid()]);
+    if (!$a) throw new RuntimeException('Pago no encontrado');
+    if (!puede_editar_abono($a)) throw new RuntimeException($a['liquidacion_id'] ? 'Este pago ya fue entregado/liquidado; pide al administrador que lo revise' : 'Solo puedes editar los pagos que tú registraste');
+    $v = row('SELECT * FROM ventas WHERE id = ?', [$a['venta_id']]);
+    if (in_array($v['estado'], ['anulada', 'recogida'], true)) throw new RuntimeException('La venta está ' . $v['estado']);
+    $monto = round((float) $monto, 2);
+    if ($monto <= 0) throw new RuntimeException('El monto debe ser mayor a cero');
+    if (trim((string) $motivo) === '') throw new RuntimeException('Escribe el motivo de la corrección');
+    if ($a['tipo'] === 'contado' && abs($monto - (float) $a['monto']) > 0.004) throw new RuntimeException('El pago de una venta de contado no se puede cambiar; modifica o anula la venta');
+    $otros = (float) val('SELECT COALESCE(SUM(monto),0) FROM abonos WHERE venta_id=? AND anulado=0 AND id<>?', [$v['id'], $a['id']]);
+    if ($otros + $monto > (float) $v['total'] + 0.009) throw new RuntimeException('El monto supera el total de la venta. Máximo permitido: ' . money((float) $v['total'] - $otros));
+    if ($a['tipo'] === 'enganche' && $monto + 0.004 < (float) $v['enganche_monto']) {
+        if (val("SELECT COUNT(*) FROM abonos WHERE venta_id=? AND anulado=0 AND tipo='abono'", [$v['id']])) throw new RuntimeException('El enganche no puede quedar menor a ' . money($v['enganche_monto']) . ' porque ya hay abonos registrados');
+    }
+    $antes = (float) $a['monto'];
+    db()->beginTransaction();
+    update('abonos', [
+        'monto' => $monto,
+        'metodo' => $metodo ?: $a['metodo'],
+        'nota' => nullable($nota),
+        'comision_monto' => round($monto * (float) $a['comision_pct'] / 100, 2),
+        'monto_original' => $a['monto_original'] !== null ? $a['monto_original'] : $antes,
+        'editado_por' => uid(),
+        'editado_at' => now(),
+    ], 'id = ?', [$a['id']]);
+    if ($v['estado'] === 'pagada') update('ventas', ['estado' => 'activa'], 'id = ?', [$v['id']]);
+    if ($a['tipo'] === 'enganche' && $monto + 0.004 < (float) $v['enganche_monto']) {
+        // el enganche quedó incompleto: vuelve a "pendiente de enganche"
+        update('ventas', ['fecha_enganche' => null], 'id = ?', [$v['id']]);
+        q('DELETE FROM cuotas WHERE venta_id = ?', [$v['id']]);
+    }
+    recalcular_venta($v['id']);
+    $nv = row('SELECT saldo FROM ventas WHERE id = ?', [$v['id']]);
+    chat_sistema($v['id'], 'Pago #' . $a['id'] . ' corregido por ' . user()['nombre'] . ': ' . money($antes) . ' → ' . money($monto) . '. Motivo: ' . trim($motivo) . '. Saldo: ' . money($nv['saldo']));
+    db()->commit();
+}

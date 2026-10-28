@@ -40,7 +40,7 @@ layout_header('Cobros');
     <tr><td><?= fdate($a['fecha'], true) ?></td><td><?= e(nombre_completo($a)) ?></td><td><a class="text-brand-600 font-medium" href="<?= url('venta', ['id' => $a['venta_id']]) ?>"><?= e($a['codigo']) ?></a></td><td><?= e(ucfirst($a['tipo'])) ?></td><td><?= e($a['usuario']) ?></td>
       <td class="num font-semibold"><?= money($a['monto']) ?></td><td class="num text-slate-500"><?= money($a['comision_monto']) ?></td>
       <td><?= $a['liquidacion_id'] ? '<span class="badge badge-green">Entregado</span>' : '<span class="badge badge-yellow">Por entregar</span>' ?></td>
-      <td><a href="ticket.php?tipo=abono&id=<?= $a['id'] ?>" target="_blank" class="btn btn-ghost btn-icon"><i data-lucide="printer"></i></a></td></tr>
+      <td class="whitespace-nowrap"><a href="ticket.php?tipo=abono&id=<?= $a['id'] ?>" target="_blank" class="btn btn-ghost btn-icon"><i data-lucide="printer"></i></a><?php if (puede_editar_abono($a) && $a['tipo'] !== 'contado'): ?><a href="<?= url('venta', ['id' => $a['venta_id'], 'editar_abono' => $a['id']]) ?>" class="btn btn-ghost btn-icon text-brand-600" title="Corregir pago"><i data-lucide="pencil"></i></a><?php endif; ?></td></tr>
   <?php endforeach; ?>
   </tbody></table><?php if (!$list) echo empty_state('Sin cobros en este periodo', 'coins'); ?></div><?= pager($nTot, $per, $pg) ?></div>
 

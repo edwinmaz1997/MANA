@@ -58,6 +58,11 @@ if (is_post()) {
                 chat_sistema($id, 'VENTA ANULADA por ' . user()['nombre'] . '. Motivo: ' . (post('motivo') ?: '—'));
                 db()->commit();
                 break;
+            case 'editar_abono':
+                editar_abono((int) post('abono_id'), dec(post('monto')), post('metodo'), post('nota'), post('motivo'));
+                if (is_ajax()) json_out(['ok' => true]);
+                flash('success', 'Pago corregido');
+                redirect(url('venta', ['id' => $id]));
             case 'anular_abono':
                 require_perm('admin');
                 anular_abono((int) post('abono_id'));
@@ -230,10 +235,11 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
         <tbody>
         <?php foreach ($abonos as $a): ?>
           <tr class="<?= $a['anulado'] ? 'line-through text-slate-400' : '' ?>">
-            <td><?= fdate($a['fecha'], true) ?></td><td><?= e(ucfirst($a['tipo'])) ?></td><td><?= e($a['usuario']) ?></td><td><?= e($a['metodo']) ?></td><td class="num font-semibold"><?= money($a['monto']) ?></td>
+            <td><?= fdate($a['fecha'], true) ?></td><td><?= e(ucfirst($a['tipo'])) ?></td><td><?= e($a['usuario']) ?></td><td><?= e($a['metodo']) ?></td><td class="num font-semibold"><?= money($a['monto']) ?><?php if ($a['editado_at']): ?><div class="text-[11px] font-normal text-amber-600" title="Corregido el <?= e(fdate($a['editado_at'], true)) ?>">corregido (antes <?= money($a['monto_original']) ?>)</div><?php endif; ?></td>
             <td class="text-right whitespace-nowrap">
               <?php if (!$a['anulado']): ?>
                 <a href="ticket.php?tipo=abono&id=<?= $a['id'] ?>" target="_blank" class="btn btn-ghost btn-icon" title="Ticket"><i data-lucide="printer"></i></a>
+                <?php if (puede_editar_abono($a) && in_array($v['estado'], ['activa', 'pagada'], true) && $a['tipo'] !== 'contado'): ?><button type="button" class="btn btn-ghost btn-icon text-brand-600" title="Corregir pago" onclick='editarAbono(<?= e(json_encode(['abono_id' => (int) $a['id'], 'monto' => $a['monto'], 'metodo' => $a['metodo'], 'nota' => $a['nota'], 'tipo' => $a['tipo'], 'fecha' => fdate($a['fecha'], true)])) ?>)'><i data-lucide="pencil"></i></button><?php endif; ?>
                 <?php if (is_admin() && !$a['liquidacion_id']): ?><form method="post" class="inline" data-confirm="¿Anular este pago?"><?= csrf_field() ?><input type="hidden" name="accion" value="anular_abono"><input type="hidden" name="abono_id" value="<?= $a['id'] ?>"><button class="btn btn-ghost btn-icon text-rose-500" title="Anular"><i data-lucide="x-circle"></i></button></form><?php endif; ?>
               <?php else: ?><span class="badge badge-gray">Anulado</span><?php endif; ?>
             </td>
@@ -347,6 +353,29 @@ function abrirModificar() {
 }
 </script>
 <?php endif; ?>
+
+<div id="tpl-editar-abono" class="hidden">
+  <form method="post" class="p-5 sm:p-6 space-y-4" id="fea"><?= csrf_field() ?><input type="hidden" name="accion" value="editar_abono"><input type="hidden" name="abono_id">
+    <h3 class="text-lg font-semibold">Corregir pago</h3>
+    <div class="rounded-xl bg-slate-50 p-3 text-sm"><span class="ea-info"></span></div>
+    <div><label class="label">Monto correcto</label><input name="monto" type="number" step="0.01" min="0.01" inputmode="decimal" required class="input input-lg text-2xl font-bold"></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="label">Método</label><select name="metodo" class="select"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="deposito">Depósito</option><option value="tarjeta">Tarjeta</option></select></div>
+      <div><label class="label">Nota</label><input name="nota" class="input"></div>
+    </div>
+    <div><label class="label">Motivo de la corrección *</label><input name="motivo" required class="input" placeholder="Ej. Escribí 1500 en vez de 150"></div>
+    <p class="hint !mt-0">El saldo, las cuotas y tu comisión se recalculan. Queda registrado en el chat.</p>
+    <button class="btn btn-primary btn-lg w-full"><i data-lucide="save"></i> Guardar corrección</button>
+  </form>
+</div>
+<script>
+function editarAbono(d) {
+  var f = openForm('tpl-editar-abono', d);
+  f.querySelector('.ea-info').textContent = 'Pago de ' + d.tipo + ' del ' + d.fecha + ' por ' + money(d.monto);
+  setTimeout(function () { f.monto.focus(); f.monto.select(); }, 50);
+}
+<?php if ($ea = (int) get('editar_abono')): foreach ($abonos as $a) if ((int) $a['id'] === $ea && puede_editar_abono($a) && $a['tipo'] !== 'contado') echo 'document.addEventListener("DOMContentLoaded", function () { editarAbono(' . json_encode(['abono_id' => (int) $a['id'], 'monto' => $a['monto'], 'metodo' => $a['metodo'], 'nota' => $a['nota'], 'tipo' => $a['tipo'], 'fecha' => fdate($a['fecha'], true)]) . '); });'; endif; ?>
+</script>
 
 <div id="tpl-recogido" class="hidden">
   <form method="post" class="p-6 space-y-4"><?= csrf_field() ?><input type="hidden" name="accion" value="recogido">

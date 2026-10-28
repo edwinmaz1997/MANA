@@ -235,6 +235,9 @@ CREATE TABLE IF NOT EXISTS abonos (
   lat DECIMAL(10,7) NULL,
   lng DECIMAL(10,7) NULL,
   anulado TINYINT(1) NOT NULL DEFAULT 0,
+  monto_original DECIMAL(12,2) NULL,
+  editado_por INT UNSIGNED NULL,
+  editado_at DATETIME NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   KEY (empresa_id, fecha), KEY (venta_id), KEY (usuario_id), KEY (liquidacion_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
