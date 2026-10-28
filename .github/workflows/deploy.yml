@@ -19,7 +19,7 @@ jobs:
       # produccion -> raíz del FTP | dev -> carpeta /dev/
       SERVER_DIR: ${{ github.ref_name == 'produccion' && './' || './dev/' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PHP 7.4
         uses: shivammathur/setup-php@v2
