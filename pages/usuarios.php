@@ -77,10 +77,10 @@ layout_header('Usuarios', ['actions' => '<button onclick="openForm(\'tpl\', {act
         <?php foreach ($roles as $k => $r): ?><input type="radio" name="rol" id="rol_<?= $k ?>" value="<?= $k ?>"><label for="rol_<?= $k ?>"><?= $r[0] ?></label><?php endforeach; ?>
       </div>
     </div>
-    <div class="grid grid-cols-3 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
       <div><label class="label">Comisión cobro %</label><input name="comision_cobro_pct" type="number" step="0.01" class="input"></div>
       <div><label class="label">Comisión venta %</label><input name="comision_venta_pct" type="number" step="0.01" class="input"></div>
-      <div><label class="label">Salario base</label><input name="salario_base" type="number" step="0.01" class="input"></div>
+      <div class="col-span-2 sm:col-span-1"><label class="label">Salario base</label><input name="salario_base" type="number" step="0.01" class="input"></div>
     </div>
     <p class="hint !mt-0">Cobro: % sobre lo recaudado (13% = Q130 por cada Q1,000). Venta: además de la comisión fija de cada producto.</p>
     <div class="grid grid-cols-2 gap-3">
