@@ -303,3 +303,41 @@ function generar_ruta($cobrador_id, $fecha)
     }
     return [$rid, $n];
 }
+
+/**
+ * Rehace el calendario de un crédito conservando las cuotas ya pagadas.
+ * El saldo que falta se reparte en ($plazo * factor - cuotas pagadas) cuotas nuevas.
+ */
+function replanificar_cuotas($venta_id)
+{
+    $v = row('SELECT * FROM ventas WHERE id = ?', [$venta_id]);
+    if (!$v || $v['tipo'] !== 'credito') return;
+    if (!$v['fecha_enganche']) { q('DELETE FROM cuotas WHERE venta_id=?', [$venta_id]); recalcular_venta($venta_id); return; }
+    $pagadas = rows("SELECT * FROM cuotas WHERE venta_id=? AND estado='pagada' ORDER BY numero", [$venta_id]);
+    $nTotal = max(1, (int) $v['plazo_meses'] * frecuencia_factor($v['frecuencia']));
+    $nNuevas = max(1, $nTotal - count($pagadas));
+    $financiado = round($v['total'] - $v['enganche_monto'], 2);
+    $resto = round($financiado - array_sum(array_column($pagadas, 'monto')), 2);
+    // siguiente fecha: la primera cuota no pagada, o el periodo siguiente a la última pagada
+    $sig = val("SELECT MIN(fecha_vencimiento) FROM cuotas WHERE venta_id=? AND estado<>'pagada'", [$venta_id]);
+    if (!$sig) {
+        $ult = $pagadas ? end($pagadas)['fecha_vencimiento'] : null;
+        $sig = $ult ? fecha_cuota($ult, 1, $v['frecuencia']) : ($v['fecha_primer_abono'] ?: add_months($v['fecha_enganche'], 1));
+        if ($sig < today()) $sig = fecha_cuota(today(), 1, $v['frecuencia']);
+    }
+    q("DELETE FROM cuotas WHERE venta_id=? AND estado<>'pagada'", [$venta_id]);
+    $num = count($pagadas);
+    if ($resto > 0.004) {
+        $cuota = floor($resto / $nNuevas * 100) / 100;
+        $acum = 0;
+        for ($i = 0; $i < $nNuevas; $i++) {
+            $m = ($i === $nNuevas - 1) ? round($resto - $acum, 2) : $cuota;
+            $acum += $m;
+            insert('cuotas', ['venta_id' => $venta_id, 'numero' => ++$num, 'fecha_vencimiento' => fecha_cuota($sig, $i, $v['frecuencia']), 'monto' => $m]);
+        }
+        update('ventas', ['num_cuotas' => $num, 'cuota_monto' => $cuota], 'id=?', [$venta_id]);
+    } else {
+        update('ventas', ['num_cuotas' => $num], 'id=?', [$venta_id]);
+    }
+    recalcular_venta($venta_id);
+}

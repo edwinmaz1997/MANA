@@ -71,6 +71,47 @@ if (is_post()) {
                 if ($v['fecha_enganche']) generar_cuotas($id);
                 chat_sistema($id, 'Fecha del primer abono cambiada a ' . fdate($f));
                 break;
+            case 'modificar':
+                require_perm('admin');
+                if ($v['estado'] !== 'activa') throw new RuntimeException('Solo se pueden modificar ventas activas');
+                $desc = max(0, dec(post('descuento')));
+                $extraM = max(0, dec(post('extra_monto')));
+                $extraC = nullable(post('extra_concepto'));
+                if ($extraM > 0 && !$extraC) $extraC = 'Extra';
+                $total = round($v['subtotal'] - $desc + $extraM, 2);
+                if ($total <= 0) throw new RuntimeException('El total debe ser mayor a cero');
+                if ($total + 0.009 < (float) $v['pagado']) throw new RuntimeException('El nuevo total (' . money($total) . ') es menor a lo ya pagado (' . money($v['pagado']) . ')');
+                $data = ['descuento' => $desc, 'extra_monto' => $extraM, 'extra_concepto' => $extraC, 'total' => $total];
+                $vend = row('SELECT comision_venta_pct FROM usuarios WHERE id=?', [$v['vendedor_id']]);
+                $comProd = (float) val('SELECT COALESCE(SUM(comision_unitaria*cantidad),0) FROM venta_detalle WHERE venta_id=?', [$id]);
+                if (!$v['liquidacion_id']) $data['comision_vendedor'] = round($comProd + $total * (float) ($vend['comision_venta_pct'] ?? 0) / 100, 2);
+                $cambios = [];
+                if (abs($desc - (float) $v['descuento']) > 0.004) $cambios[] = 'descuento ' . money($v['descuento']) . ' → ' . money($desc);
+                if (abs($extraM - (float) $v['extra_monto']) > 0.004 || $extraC !== $v['extra_concepto']) $cambios[] = 'extra ' . ($extraC ?: '—') . ' ' . money($extraM);
+                if ($v['tipo'] === 'credito') {
+                    $meses = max(1, min(60, (int) post('plazo_meses', $v['plazo_meses'])));
+                    $frec = in_array(post('frecuencia'), ['semanal', 'quincenal', 'mensual'], true) ? post('frecuencia') : $v['frecuencia'];
+                    $data['plazo_meses'] = $meses;
+                    $data['frecuencia'] = $frec;
+                    if ((int) $meses !== (int) $v['plazo_meses']) $cambios[] = 'plazo ' . (int) $v['plazo_meses'] . ' → ' . $meses . ' meses';
+                    if ($frec !== $v['frecuencia']) $cambios[] = 'frecuencia ' . $v['frecuencia'] . ' → ' . $frec;
+                    if (!$v['fecha_enganche'] && post('enganche_monto') !== null) {
+                        $eng = max(0, dec(post('enganche_monto')));
+                        if ($eng >= $total) throw new RuntimeException('El enganche no puede ser igual o mayor al total');
+                        if (abs($eng - (float) $v['enganche_monto']) > 0.004) $cambios[] = 'enganche ' . money($v['enganche_monto']) . ' → ' . money($eng);
+                        $data['enganche_monto'] = $eng;
+                        if ($eng <= 0) $data['fecha_enganche'] = today();
+                    }
+                }
+                if (!$cambios) throw new RuntimeException('No hiciste ningún cambio');
+                db()->beginTransaction();
+                update('ventas', $data + ['saldo' => max(0, round($total - (float) $v['pagado'], 2))], 'id=?', [$id]);
+                if ($v['tipo'] === 'credito') replanificar_cuotas($id); else recalcular_venta($id);
+                $nv = row('SELECT total, saldo, cuota_monto, num_cuotas, estado FROM ventas WHERE id=?', [$id]);
+                chat_sistema($id, 'Venta modificada por ' . user()['nombre'] . ': ' . implode(', ', $cambios) . '. Nuevo total ' . money($nv['total']) . ', saldo ' . money($nv['saldo'])
+                    . ($v['tipo'] === 'credito' && $nv['saldo'] > 0 && $nv['cuota_monto'] ? ', cuota ' . money($nv['cuota_monto']) : '') . (post('motivo') ? '. Motivo: ' . post('motivo') : '') . ($nv['estado'] === 'pagada' ? '. CRÉDITO CANCELADO.' : ''));
+                db()->commit();
+                break;
             case 'cuota_fecha':
                 require_perm('admin');
                 $f = post('fecha');
@@ -206,6 +247,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
     <div class="card p-5">
       <h3 class="font-semibold mb-3">Acciones</h3>
       <div class="flex flex-wrap gap-2">
+        <?php if ($v['estado'] === 'activa'): ?><button class="btn btn-primary" onclick="abrirModificar()"><i data-lucide="pencil"></i>Modificar venta</button><?php endif; ?>
         <?php if ($v['tipo'] === 'credito' && $v['estado'] === 'activa'): ?>
           <form method="post"><?= csrf_field() ?><input type="hidden" name="accion" value="recoger"><input type="hidden" name="valor" value="<?= $v['recoger_producto'] ? 0 : 1 ?>">
             <button class="btn <?= $v['recoger_producto'] ? 'btn-light' : 'btn-warning' ?>"><i data-lucide="flag"></i><?= $v['recoger_producto'] ? 'Quitar marca de recoger' : 'Marcar para recoger' ?></button></form>
@@ -230,6 +272,81 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
     </div>
   </div>
 </div>
+
+<?php if (is_admin() && $v['estado'] === 'activa'):
+    $cuotasPag = (int) val("SELECT COUNT(*) FROM cuotas WHERE venta_id=? AND estado='pagada'", [$id]); ?>
+<div id="tpl-modificar" class="hidden">
+  <form method="post" class="p-5 sm:p-6 space-y-4" id="fmod"><?= csrf_field() ?><input type="hidden" name="accion" value="modificar">
+    <h3 class="text-lg font-semibold">Modificar venta <?= e($v['codigo']) ?></h3>
+    <div class="rounded-xl bg-slate-50 p-3 text-sm grid grid-cols-3 gap-2 text-center">
+      <div><div class="text-xs text-slate-500">Productos</div><div class="font-semibold"><?= money($v['subtotal']) ?></div></div>
+      <div><div class="text-xs text-slate-500">Pagado</div><div class="font-semibold"><?= money($v['pagado']) ?></div></div>
+      <div><div class="text-xs text-slate-500">Saldo actual</div><div class="font-semibold"><?= money($v['saldo']) ?></div></div>
+    </div>
+    <?php if ($v['saldo'] > 0): ?>
+    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+      <div class="text-sm font-semibold text-emerald-800">¿Paga antes? Descuento por pronto pago</div>
+      <div class="flex gap-2 items-center"><span class="text-sm text-emerald-800 shrink-0">El cliente liquida con</span><input type="number" step="0.01" min="0" inputmode="decimal" class="input !py-2" id="liquida" placeholder="<?= e(number_format($v['saldo'], 2, '.', '')) ?>"></div>
+      <div class="text-xs text-emerald-700">Calcula el descuento para que el saldo quede en ese monto. Después registra el pago con "Cobrar".</div>
+    </div>
+    <?php endif; ?>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2"><label class="label">Descuento</label><input name="descuento" type="number" step="0.01" min="0" inputmode="decimal" class="input" value="<?= e($v['descuento']) ?>"></div>
+      <div><label class="label">Extra (concepto)</label><input name="extra_concepto" class="input" value="<?= e($v['extra_concepto']) ?>" placeholder="Ej. Flete"></div>
+      <div><label class="label">Extra (monto)</label><input name="extra_monto" type="number" step="0.01" min="0" inputmode="decimal" class="input" value="<?= e($v['extra_monto']) ?>"></div>
+    </div>
+    <?php if ($v['tipo'] === 'credito'): ?>
+    <div>
+      <div class="flex justify-between items-end"><label class="label">Plazo</label><div class="text-xl font-extrabold text-brand-700"><span id="m-meses"><?= (int) $v['plazo_meses'] ?></span> <span class="text-sm font-semibold text-slate-500">meses</span></div></div>
+      <input type="range" name="plazo_meses" class="range mt-1" min="1" max="24" value="<?= (int) $v['plazo_meses'] ?>">
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="label">Frecuencia</label><select name="frecuencia" class="select"><?php foreach (['mensual' => 'Mensual', 'quincenal' => 'Quincenal', 'semanal' => 'Semanal'] as $k => $l) echo '<option value="' . $k . '"' . ($v['frecuencia'] === $k ? ' selected' : '') . '>' . $l . '</option>'; ?></select></div>
+      <?php if (!$v['fecha_enganche']): ?><div><label class="label">Enganche</label><input name="enganche_monto" type="number" step="0.01" min="0" inputmode="decimal" class="input" value="<?= e($v['enganche_monto']) ?>"></div><?php endif; ?>
+    </div>
+    <?php if ($cuotasPag): ?><p class="hint !mt-0">Las <?= $cuotasPag ?> cuota(s) ya pagadas se conservan; el saldo se reparte en las cuotas que faltan del nuevo plazo.</p><?php endif; ?>
+    <?php endif; ?>
+    <div class="rounded-xl bg-slate-900 text-white p-4 space-y-1 text-sm">
+      <div class="flex justify-between"><span class="text-slate-300">Nuevo total</span><b id="m-total"></b></div>
+      <div class="flex justify-between"><span class="text-slate-300">Nuevo saldo</span><b id="m-saldo" class="text-lg"></b></div>
+      <?php if ($v['tipo'] === 'credito'): ?><div class="flex justify-between"><span class="text-slate-300">Cuota aproximada</span><b id="m-cuota"></b></div><?php endif; ?>
+    </div>
+    <div><label class="label">Motivo</label><input name="motivo" class="input" placeholder="Ej. Pronto pago, cliente pidió más plazo"></div>
+    <button class="btn btn-primary btn-lg w-full"><i data-lucide="save"></i> Guardar cambios</button>
+  </form>
+</div>
+<script>
+function abrirModificar() {
+  var f = openForm('tpl-modificar');
+  var SUB = <?= json_encode((float) $v['subtotal']) ?>, PAG = <?= json_encode((float) $v['pagado']) ?>, SALDO = <?= json_encode((float) $v['saldo']) ?>, DESC0 = <?= json_encode((float) $v['descuento']) ?>;
+  var ENG = <?= json_encode((float) $v['enganche_monto']) ?>, ENG_PAG = <?= $v['fecha_enganche'] ? 'true' : 'false' ?>, PAGADAS = <?= (int) $cuotasPag ?>, PAG_CUOTAS = <?= json_encode((float) val("SELECT COALESCE(SUM(monto),0) FROM cuotas WHERE venta_id=? AND estado='pagada'", [$id])) ?>;
+  function calc() {
+    var total = Math.round((SUB - (Number(f.descuento.value) || 0) + (Number(f.extra_monto.value) || 0)) * 100) / 100;
+    var saldo = Math.max(0, total - PAG);
+    document.getElementById('m-total').textContent = money(total);
+    var s = document.getElementById('m-saldo'); s.textContent = money(saldo); s.classList.toggle('text-rose-300', total < PAG);
+    if (f.plazo_meses) {
+      document.getElementById('m-meses').textContent = f.plazo_meses.value;
+      var fac = f.frecuencia.value === 'semanal' ? 4 : (f.frecuencia.value === 'quincenal' ? 2 : 1);
+      var eng = f.enganche_monto ? (Number(f.enganche_monto.value) || 0) : ENG;
+      var n = Math.max(1, f.plazo_meses.value * fac - PAGADAS);
+      var resto = Math.max(0, total - eng - PAG_CUOTAS);
+      document.getElementById('m-cuota').textContent = saldo > 0 ? n + ' x ' + money(Math.floor(resto / n * 100) / 100) : '—';
+    }
+  }
+  f.querySelectorAll('input, select').forEach(function (el) { el.addEventListener('input', calc); el.addEventListener('change', calc); });
+  var liq = document.getElementById('liquida');
+  if (liq) liq.addEventListener('input', function () {
+    var x = Number(liq.value); if (!liq.value || isNaN(x)) return;
+    var desc = Math.max(0, Math.round((DESC0 + (SALDO - x)) * 100) / 100);
+    f.descuento.value = desc.toFixed(2);
+    if (!f.motivo.value) f.motivo.value = 'Pronto pago: liquida con ' + money(x);
+    calc();
+  });
+  calc();
+}
+</script>
+<?php endif; ?>
 
 <div id="tpl-recogido" class="hidden">
   <form method="post" class="p-6 space-y-4"><?= csrf_field() ?><input type="hidden" name="accion" value="recogido">
