@@ -1,0 +1,87 @@
+/* MANA - utilidades de interfaz */
+function toggleSidebar(open) {
+  document.getElementById('sidebar').classList.toggle('-translate-x-full', !open);
+  document.getElementById('backdrop').classList.toggle('hidden', !open);
+}
+function money(n) {
+  n = Number(n || 0);
+  return (window.MONEDA || 'Q') + ' ' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function toast(msg, ms) {
+  var t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function () { t.remove(); }, ms || 2600);
+}
+async function api(url, data, method) {
+  var opts = { method: method || (data ? 'POST' : 'GET'), headers: { 'X-Requested-With': 'fetch', 'X-CSRF': window.CSRF, 'Accept': 'application/json' } };
+  if (data) {
+    if (data instanceof FormData) { data.append('_csrf', window.CSRF); opts.body = data; }
+    else { var fd = new FormData(); Object.keys(data).forEach(function (k) { fd.append(k, typeof data[k] === 'object' && data[k] !== null ? JSON.stringify(data[k]) : (data[k] == null ? '' : data[k])); }); fd.append('_csrf', window.CSRF); opts.body = fd; }
+  }
+  var r = await fetch(url, opts);
+  var txt = await r.text();
+  try { return JSON.parse(txt); } catch (e) { console.error(txt); return { ok: false, error: 'Error del servidor' }; }
+}
+function openModal(html) {
+  var root = document.getElementById('modal-root');
+  root.innerHTML = '<div class="modal-wrap" onclick="if(event.target===this)closeModal()"><div class="modal">' + html + '</div></div>';
+  if (window.lucide) lucide.createIcons();
+  var f = root.querySelector('[autofocus]'); if (f) f.focus();
+  return root.firstChild;
+}
+function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+function getGeo() {
+  return new Promise(function (res) {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(function (p) { res({ lat: p.coords.latitude.toFixed(7), lng: p.coords.longitude.toFixed(7) }); }, function () { res(null); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+  });
+}
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+document.addEventListener('submit', function (ev) {
+  var f = ev.target;
+  if (f.dataset.confirm && !confirm(f.dataset.confirm)) { ev.preventDefault(); return; }
+  var b = f.querySelector('button[type=submit]:not([data-nolock])');
+  if (b && !f.dataset.nolock) setTimeout(function () { b.disabled = true; }, 10);
+});
+document.addEventListener('click', function (ev) {
+  var a = ev.target.closest('[data-confirm]');
+  if (a && a.tagName === 'A' && !confirm(a.dataset.confirm)) ev.preventDefault();
+});
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.lucide) lucide.createIcons();
+  document.querySelectorAll('.flash').forEach(function (f) { setTimeout(function () { f.style.transition = 'opacity .4s'; f.style.opacity = 0; setTimeout(function () { f.remove(); }, 400); }, 5000); });
+  document.querySelectorAll('button[name=r]').forEach(function (b) {
+    if (b.value === 'rango' && b.closest('.inline-flex')) b.addEventListener('click', function (e) { var box = document.getElementById('rango-box'); if (box && box.classList.contains('hidden')) { e.preventDefault(); box.classList.remove('hidden'); } });
+  });
+  // Vista previa de imágenes
+  document.querySelectorAll('input[type=file][data-preview]').forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      var img = document.getElementById(inp.dataset.preview);
+      if (img && inp.files[0]) { img.src = URL.createObjectURL(inp.files[0]); img.classList.remove('hidden'); }
+    });
+  });
+});
+
+/* Formularios en modal: openForm('tpl-id', {campo: valor}) */
+function openForm(tplId, data) {
+  var tpl = document.getElementById(tplId);
+  var m = openModal(tpl.innerHTML);
+  var f = m.querySelector('form');
+  data = data || {};
+  Object.keys(data).forEach(function (k) {
+    var els = f.querySelectorAll('[name="' + k + '"]');
+    els.forEach(function (el) {
+      if (el.type === 'checkbox') el.checked = !!Number(data[k]);
+      else if (el.type === 'radio') el.checked = String(el.value) === String(data[k]);
+      else if (el.type !== 'file') el.value = data[k] == null ? '' : data[k];
+    });
+  });
+  var t = m.querySelector('[data-title]');
+  if (t) t.textContent = data.id ? t.dataset.edit || 'Editar' : t.dataset.title;
+  f.querySelectorAll('[data-onlynew]').forEach(function (el) { el.classList.toggle('hidden', !!data.id); });
+  f.querySelectorAll('[data-onlyedit]').forEach(function (el) { el.classList.toggle('hidden', !data.id); });
+  f.dispatchEvent(new Event('formopen'));
+  return f;
+}

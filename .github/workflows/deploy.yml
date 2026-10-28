@@ -29,7 +29,7 @@ jobs:
 
       - name: Validar sintaxis PHP
         run: |
-          find . -type f -name "*.php" -not -path "./vendor/*" -print0 \
+          find . -type f -name "*.php" -not -path "./vendor/*" -not -path "./assets/*" -print0 \
             | xargs -0 -r -n1 php -l > /dev/null
 
       - name: Verificar secret FTP_PASSWORD
@@ -53,6 +53,8 @@ jobs:
             **/.git*/**
             **/.github/**
             **/node_modules/**
+            build/**
+            config.example.php
             **/.env
             README.md
           log-level: standard

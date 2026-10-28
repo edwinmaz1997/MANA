@@ -1,0 +1,13 @@
+/** Configuración de Tailwind para compilar assets/styles.css
+ *  Compilar: npx tailwindcss@3 -c build/tailwind.config.js -i build/tailwind.input.css -o assets/styles.css --minify
+ */
+module.exports = {
+  content: ['./*.php', './pages/**/*.php', './app/**/*.php', './assets/app.js'],
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+      colors: { brand: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81' } },
+    },
+  },
+  plugins: [],
+};

@@ -1,0 +1,9 @@
+Options -Indexes
+DirectoryIndex index.php
+<Files "config.php">
+  Require all denied
+</Files>
+<IfModule mod_php7.c>
+  php_value upload_max_filesize 16M
+  php_value post_max_size 20M
+</IfModule>
