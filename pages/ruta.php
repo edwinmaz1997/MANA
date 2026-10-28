@@ -50,6 +50,18 @@ $visitas = $ruta ? rows("SELECT rv.*, c.nombre, c.apellido, c.codigo cli_codigo,
     FROM ruta_visitas rv JOIN ventas v ON v.id=rv.venta_id LEFT JOIN clientes c ON c.id=rv.cliente_id LEFT JOIN areas a ON a.id=rv.area_id LEFT JOIN abonos ab ON ab.id=rv.abono_id AND ab.anulado=0
     WHERE rv.ruta_id=? AND rv.estado<>'reprogramada' ORDER BY COALESCE(a.nombre, 'zzz'), (rv.estado='pendiente') DESC, rv.atrasada DESC, c.nombre, rv.orden", [$ruta['id']]) : [];
 $res = resumen_cobrador($cobId, $fecha, $fecha);
+
+// Detalle de cada crédito (productos, avance, último pago, notas y chat)
+$det = [];
+if ($visitas) {
+    $ids = implode(',', array_map('intval', array_unique(array_column($visitas, 'venta_id'))));
+    foreach (rows("SELECT v.id, v.total, v.pagado, v.num_cuotas, v.cuota_monto, v.plazo_meses, v.frecuencia, v.fecha, v.notas, u.nombre vendedor,
+            (SELECT COUNT(*) FROM cuotas c WHERE c.venta_id=v.id AND c.estado='pagada') cuotas_pagadas
+            FROM ventas v LEFT JOIN usuarios u ON u.id=v.vendedor_id WHERE v.id IN ($ids)") as $r) $det[$r['id']] = $r + ['productos' => [], 'abono' => null, 'chat' => []];
+    foreach (rows("SELECT venta_id, descripcion, cantidad FROM venta_detalle WHERE venta_id IN ($ids)") as $r) $det[$r['venta_id']]['productos'][] = $r;
+    foreach (rows("SELECT a.venta_id, a.fecha, a.monto, u.nombre FROM abonos a LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE a.venta_id IN ($ids) AND a.anulado=0 ORDER BY a.fecha DESC") as $r) if (!$det[$r['venta_id']]['abono']) $det[$r['venta_id']]['abono'] = $r;
+    foreach (rows("SELECT m.venta_id, m.mensaje, m.sistema, m.created_at, u.nombre FROM venta_mensajes m LEFT JOIN usuarios u ON u.id=m.usuario_id WHERE m.venta_id IN ($ids) ORDER BY m.id DESC") as $r) if (count($det[$r['venta_id']]['chat']) < 4) $det[$r['venta_id']]['chat'][] = $r;
+}
 // Agrupar por área: primero las áreas con visitas pendientes
 $grupos = [];
 foreach ($visitas as $x) $grupos[$x['area'] ?: 'Sin área'][] = $x;
@@ -144,6 +156,35 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
       <div class="rounded-lg bg-slate-50 py-1.5"><div class="text-[11px] text-slate-500">Saldo</div><div class="font-bold"><?= money($x['saldo']) ?></div></div>
     </div>
     <?php if ($x['nota']): ?><div class="px-4 pb-3 text-xs text-slate-600"><i data-lucide="sticky-note" class="w-3 h-3 inline"></i> <?= e($x['nota']) ?></div><?php endif; ?>
+    <?php $dv = $det[$x['venta_id']] ?? null; if ($dv): $pctV = $dv['total'] > 0 ? min(100, round($dv['pagado'] / $dv['total'] * 100)) : 0; ?>
+    <details class="detalle-credito border-t border-slate-100">
+      <summary class="px-4 py-2.5 text-sm font-medium text-brand-600 flex items-center gap-2 cursor-pointer select-none"><i data-lucide="file-text" class="w-4 h-4"></i> Detalle del crédito <span class="ml-auto text-xs text-slate-500 font-normal"><?= $dv['num_cuotas'] ? (int) $dv['cuotas_pagadas'] . '/' . (int) $dv['num_cuotas'] . ' cuotas · ' : '' ?><?= $pctV ?>% pagado</span><i data-lucide="chevron-down" class="w-4 h-4 chev"></i></summary>
+      <div class="px-4 pb-4 space-y-3 text-sm">
+        <div class="h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-gradient-to-r from-brand-500 to-emerald-400" style="width:<?= $pctV ?>%"></div></div>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          <div class="text-slate-500">Total</div><div class="text-right font-medium"><?= money($dv['total']) ?></div>
+          <div class="text-slate-500">Pagado</div><div class="text-right font-medium"><?= money($dv['pagado']) ?></div>
+          <div class="text-slate-500">Cuota</div><div class="text-right font-medium"><?= $dv['cuota_monto'] ? money($dv['cuota_monto']) . ' ' . e($dv['frecuencia']) : '—' ?></div>
+          <div class="text-slate-500">Vendido</div><div class="text-right"><?= fdate($dv['fecha']) ?> · <?= e($dv['vendedor']) ?></div>
+          <div class="text-slate-500">Último pago</div><div class="text-right"><?= $dv['abono'] ? money($dv['abono']['monto']) . ' · ' . fdate($dv['abono']['fecha']) : 'Ninguno' ?></div>
+        </div>
+        <div><div class="text-xs font-semibold text-slate-500 uppercase mb-1">Productos</div>
+          <?php foreach ($dv['productos'] as $pr): ?><div class="flex justify-between"><span><?= e($pr['descripcion']) ?></span><span class="text-slate-500">x<?= num($pr['cantidad'], $pr['cantidad'] == floor($pr['cantidad']) ? 0 : 2) ?></span></div><?php endforeach; ?>
+        </div>
+        <?php if ($dv['notas']): ?><div class="rounded-lg bg-amber-50 border border-amber-100 p-2.5 text-amber-900"><div class="text-xs font-semibold uppercase mb-0.5">Notas de la venta</div><?= nl2br(e($dv['notas'])) ?></div><?php endif; ?>
+        <?php if ($dv['chat']): ?>
+          <div><div class="text-xs font-semibold text-slate-500 uppercase mb-1">Últimos mensajes</div>
+            <div class="space-y-1.5">
+            <?php foreach ($dv['chat'] as $m): ?>
+              <div class="rounded-lg <?= $m['sistema'] ? 'bg-brand-50 text-brand-900' : 'bg-slate-50' ?> px-2.5 py-1.5 text-xs"><?php if (!$m['sistema'] && $m['nombre']): ?><b><?= e($m['nombre']) ?>:</b> <?php endif; ?><?= e($m['mensaje']) ?><div class="text-[10px] text-slate-400 mt-0.5"><?= fdate($m['created_at'], true) ?></div></div>
+            <?php endforeach; ?>
+            </div>
+          </div>
+        <?php endif; ?>
+        <a href="<?= url('venta', ['id' => $x['venta_id']]) ?>" class="btn btn-light w-full"><i data-lucide="external-link"></i> Abrir crédito y chat</a>
+      </div>
+    </details>
+    <?php endif; ?>
     <div class="border-t border-slate-100 grid grid-cols-4 divide-x divide-slate-100 text-xs font-medium">
       <?php if ($map): ?><a href="<?= e($map) ?>" target="_blank" class="py-3 flex flex-col items-center gap-1 text-slate-600 hover:bg-slate-50"><i data-lucide="navigation" class="w-4 h-4"></i>Ir</a><?php else: ?><span class="py-3 flex flex-col items-center gap-1 text-slate-300"><i data-lucide="navigation" class="w-4 h-4"></i>Sin mapa</span><?php endif; ?>
       <?php if ($x['telefono']): ?><a href="tel:<?= e($x['telefono']) ?>" class="py-3 flex flex-col items-center gap-1 text-slate-600 hover:bg-slate-50"><i data-lucide="phone" class="w-4 h-4"></i>Llamar</a><?php else: ?><span class="py-3 flex flex-col items-center gap-1 text-slate-300"><i data-lucide="phone" class="w-4 h-4"></i>—</span><?php endif; ?>

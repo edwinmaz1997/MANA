@@ -39,6 +39,9 @@ body { font-family: Inter, system-ui, sans-serif; }
 .input-lg { padding:.8rem 1rem; font-size:1.05rem; }
 .input-date-sm { width:auto; }
 .area-grupo.cerrado .area-body { display:none; }
+.detalle-credito summary { list-style:none; }
+.detalle-credito summary::-webkit-details-marker { display:none; }
+.detalle-credito[open] .chev { transform:rotate(180deg); }
 .area-grupo.cerrado .chev { transform:rotate(-90deg); }
 .break-anywhere { overflow-wrap:anywhere; }
 .td-v { min-width:0; }
