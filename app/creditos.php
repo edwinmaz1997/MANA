@@ -156,7 +156,8 @@ function sql_credito_cols()
 {
     return "(SELECT MIN(c.fecha_vencimiento) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada') AS prox_venc,
             GREATEST(0, DATEDIFF(CURDATE(), (SELECT MIN(c.fecha_vencimiento) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada'))) AS dias_atraso,
-            (SELECT COALESCE(SUM(c.monto - c.pagado),0) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada' AND c.fecha_vencimiento <= CURDATE()) AS monto_vencido,
+            (SELECT COALESCE(SUM(c.monto - c.pagado),0) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada' AND c.fecha_vencimiento < CURDATE()) AS monto_vencido,
+            (SELECT COALESCE(SUM(c.monto - c.pagado),0) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada' AND c.fecha_vencimiento <= CURDATE()) AS monto_exigible,
             DATEDIFF(CURDATE(), COALESCE(v.ultimo_abono, v.fecha_enganche, v.fecha)) AS dias_sin_abono";
 }
 
@@ -174,7 +175,7 @@ function semaforo(array $v)
         return $sinAbono > 30 ? ['rojo', 'Enganche pendiente', 'badge-red'] : ['amarillo', 'Pendiente de enganche', 'badge-yellow'];
     }
     $d = isset($v['dias_atraso']) ? (int) $v['dias_atraso'] : 0;
-    if ($d <= 0) return ['verde', 'Al día', 'badge-green'];
+    if ($d <= 0) return (isset($v['prox_venc']) && $v['prox_venc'] === today()) ? ['verde', 'Vence hoy', 'badge-green'] : ['verde', 'Al día', 'badge-green'];
     if ($d <= 30) return ['amarillo', $d . ' días de atraso', 'badge-yellow'];
     return ['rojo', $d . ' días de atraso', 'badge-red'];
 }

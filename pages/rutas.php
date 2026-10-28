@@ -15,6 +15,10 @@ if (is_post() && post('accion') === 'generar_todas') {
     redirect(url('rutas', ['fecha' => $fecha]));
 }
 
+// Mantener al día las rutas de hoy (agrega ventas nuevas y cuotas que vencen hoy)
+if ($fecha === today()) {
+    foreach (rows("SELECT DISTINCT cobrador_id FROM areas WHERE empresa_id=? AND activo=1 AND cobrador_id IS NOT NULL", [$eid]) as $r) generar_ruta((int) $r['cobrador_id'], $fecha);
+}
 $cobs = rows("SELECT u.id, u.nombre, u.apellido, u.rol,
     (SELECT GROUP_CONCAT(a.nombre SEPARATOR ', ') FROM areas a WHERE a.cobrador_id=u.id AND a.activo=1) areas,
     r.id ruta_id

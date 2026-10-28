@@ -128,7 +128,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
             <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Plazo</div><div class="font-semibold"><?= (int) $v['plazo_meses'] ?> meses · <?= e($v['frecuencia']) ?></div></div>
             <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Cuota</div><div class="font-semibold"><?= $v['cuota_monto'] ? money($v['cuota_monto']) : '—' ?></div></div>
             <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Enganche</div><div class="font-semibold"><?= money($v['enganche_monto']) ?></div><div class="text-xs <?= $pendEng ? 'text-amber-600 font-semibold' : 'text-slate-500' ?>"><?= $v['fecha_enganche'] ? fdate($v['fecha_enganche']) : 'Pendiente de enganche' ?></div></div>
-            <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Próximo pago</div><div class="font-semibold"><?= $v['estado'] !== 'activa' ? '—' : ($v['prox_venc'] ? fdate($v['prox_venc']) : ($v['fecha_primer_abono'] ? fdate($v['fecha_primer_abono']) : '—')) ?></div><?php if ($v['monto_vencido'] > 0 && $v['estado'] === 'activa'): ?><div class="text-xs text-rose-600 font-semibold">Vencido <?= money($v['monto_vencido']) ?></div><?php endif; ?></div>
+            <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Próximo pago</div><div class="font-semibold"><?= $v['estado'] !== 'activa' ? '—' : ($v['prox_venc'] ? fdate($v['prox_venc']) : ($v['fecha_primer_abono'] ? fdate($v['fecha_primer_abono']) : '—')) ?></div><?php if ($v['estado'] === 'activa' && $v['monto_vencido'] > 0): ?><div class="text-xs text-rose-600 font-semibold">Vencido <?= money($v['monto_vencido']) ?></div><?php elseif ($v['estado'] === 'activa' && $v['prox_venc'] === today()): ?><div class="text-xs text-amber-600 font-semibold">Vence hoy <?= money($v['monto_exigible']) ?></div><?php endif; ?></div>
           </div>
         </div>
       <?php endif; ?>
@@ -164,7 +164,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
         <tbody>
         <?php foreach ($cuotas as $c):
             $venc = $c['estado'] !== 'pagada' && $c['fecha_vencimiento'] < today();
-            $b = $c['estado'] === 'pagada' ? ['badge-green', 'Pagada'] : ($venc ? ['badge-red', 'Vencida'] : ($c['estado'] === 'parcial' ? ['badge-yellow', 'Parcial'] : ['badge-gray', 'Pendiente'])); ?>
+            $b = $c['estado'] === 'pagada' ? ['badge-green', 'Pagada'] : ($venc ? ['badge-red', 'Vencida'] : ($c['fecha_vencimiento'] === today() ? ['badge-yellow', 'Vence hoy'] : ($c['estado'] === 'parcial' ? ['badge-yellow', 'Parcial'] : ['badge-gray', 'Pendiente']))); ?>
           <tr class="<?= $venc ? 'bg-rose-50/40' : '' ?>"><td><?= (int) $c['numero'] ?></td>
             <td><?php if (is_admin() && $c['estado'] !== 'pagada'): ?><form method="post" class="flex gap-1 items-center"><?= csrf_field() ?><input type="hidden" name="accion" value="cuota_fecha"><input type="hidden" name="cuota_id" value="<?= $c['id'] ?>"><input type="date" name="fecha" value="<?= e($c['fecha_vencimiento']) ?>" class="input input-date-sm !py-1 !px-2 text-sm" onchange="this.form.submit()"></form><?php else: ?><?= fdate($c['fecha_vencimiento']) ?><?php endif; ?></td>
             <td class="num"><?= money($c['monto']) ?></td><td class="num hidden sm:table-cell"><?= money($c['pagado']) ?></td><td><span class="badge <?= $b[0] ?>"><?= $b[1] ?></span></td></tr>
@@ -252,7 +252,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
       <?php if ($v['monto_vencido'] > 0): ?><div class="col-span-2 text-rose-600">Vencido: <b><?= money($v['monto_vencido']) ?></b></div><?php endif; ?>
     </div>
     <div><label class="label">Monto recibido</label><input name="monto" type="number" step="0.01" min="0.01" max="<?= e($v['saldo']) ?>" required class="input input-lg text-2xl font-bold" autofocus
-      value="<?= e(number_format(min((float) $v['saldo'], $pendEng ? (float) $v['enganche_monto'] : max((float) $v['cuota_monto'], (float) $v['monto_vencido'])), 2, '.', '')) ?>"></div>
+      value="<?= e(number_format(min((float) $v['saldo'], $pendEng ? (float) $v['enganche_monto'] : ((float) $v['monto_exigible'] > 0 ? (float) $v['monto_exigible'] : (float) $v['cuota_monto'])), 2, '.', '')) ?>"></div>
     <div class="grid grid-cols-2 gap-3">
       <div><label class="label">Método</label><select name="metodo" class="select"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="deposito">Depósito</option></select></div>
       <div><label class="label">Nota</label><input name="nota" class="input"></div>

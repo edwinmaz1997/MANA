@@ -31,7 +31,7 @@ if (is_post()) {
 
 // La ruta del día se crea automáticamente al abrirla
 if ($fecha === today() && ($cob['rol'] === 'cobrador' || is_admin())) {
-    if (!val('SELECT id FROM rutas WHERE empresa_id=? AND fecha=? AND cobrador_id=?', [$eid, $fecha, $cobId])) generar_ruta($cobId, $fecha);
+    generar_ruta($cobId, $fecha); // solo agrega los créditos que faltan (ventas nuevas, cuotas de hoy, atrasadas)
 }
 $ruta = row('SELECT * FROM rutas WHERE empresa_id=? AND fecha=? AND cobrador_id=?', [$eid, $fecha, $cobId]);
 $visitas = $ruta ? rows("SELECT rv.*, c.nombre, c.apellido, c.codigo cli_codigo, c.telefono, c.direccion, c.maps_url, c.lat clat, c.lng clng, c.foto_casa, a.nombre area,
@@ -73,7 +73,7 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
 <?php foreach ($visitas as $x):
     $s = semaforo(array_merge($x, ['estado' => $x['vestado']]));
     $pendEng = !$x['fecha_enganche'] && $x['enganche_monto'] > 0;
-    $sugerido = $pendEng ? $x['enganche_monto'] : max((float) $x['cuota_monto'], (float) $x['monto_vencido']);
+    $sugerido = $pendEng ? $x['enganche_monto'] : ((float) $x['monto_exigible'] > 0 ? (float) $x['monto_exigible'] : (float) $x['cuota_monto']);
     $sugerido = min($sugerido, (float) $x['saldo']);
     $map = maps_link(['maps_url' => $x['maps_url'], 'lat' => $x['clat'], 'lng' => $x['clng']]);
     $estados = ['pendiente' => ['badge-gray', 'Pendiente'], 'pago' => ['badge-green', 'Pagó ' . money($x['abono_monto'])], 'no_pago' => ['badge-red', 'No pagó'], 'no_encontrado' => ['badge-yellow', 'No encontrado']];
@@ -95,7 +95,7 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
     </div>
     <div class="px-4 pb-3 grid grid-cols-3 gap-2 text-center text-sm">
       <div class="rounded-lg bg-slate-50 py-1.5"><div class="text-[11px] text-slate-500">Cobrar</div><div class="font-bold"><?= money($sugerido) ?></div></div>
-      <div class="rounded-lg bg-slate-50 py-1.5"><div class="text-[11px] text-slate-500">Vencido</div><div class="font-bold <?= $x['monto_vencido'] > 0 ? 'text-rose-600' : '' ?>"><?= money($x['monto_vencido']) ?></div></div>
+      <div class="rounded-lg bg-slate-50 py-1.5"><?php if ($x['monto_vencido'] > 0): ?><div class="text-[11px] text-slate-500">Vencido</div><div class="font-bold text-rose-600"><?= money($x['monto_vencido']) ?></div><?php else: ?><div class="text-[11px] text-slate-500">Vence</div><div class="font-bold <?= $x['prox_venc'] === today() ? 'text-amber-600' : '' ?>"><?= $x['prox_venc'] === today() ? 'Hoy' : ($x['prox_venc'] ? fdate($x['prox_venc']) : '—') ?></div><?php endif; ?></div>
       <div class="rounded-lg bg-slate-50 py-1.5"><div class="text-[11px] text-slate-500">Saldo</div><div class="font-bold"><?= money($x['saldo']) ?></div></div>
     </div>
     <?php if ($x['nota']): ?><div class="px-4 pb-3 text-xs text-slate-600"><i data-lucide="sticky-note" class="w-3 h-3 inline"></i> <?= e($x['nota']) ?></div><?php endif; ?>
