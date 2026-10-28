@@ -25,12 +25,14 @@ async function api(url, data, method) {
 }
 function openModal(html) {
   var root = document.getElementById('modal-root');
-  root.innerHTML = '<div class="modal-wrap" onclick="if(event.target===this)closeModal()"><div class="modal">' + html + '</div></div>';
+  root.innerHTML = '<div class="modal-wrap" onclick="if(event.target===this)closeModal()"><div class="modal"><button type="button" class="modal-close" onclick="closeModal()" aria-label="Cerrar"><i data-lucide="x"></i></button>' + html + '</div></div>';
+  document.body.classList.add('modal-open');
   if (window.lucide) lucide.createIcons();
   var f = root.querySelector('[autofocus]'); if (f) f.focus();
   return root.firstChild;
 }
-function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+function closeModal() { document.getElementById('modal-root').innerHTML = ''; document.body.classList.remove('modal-open'); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.querySelector('.modal-wrap')) closeModal(); });
 function getGeo() {
   return new Promise(function (res) {
     if (!navigator.geolocation) return res(null);
@@ -132,3 +134,31 @@ function fitText() {
 document.addEventListener('DOMContentLoaded', fitText);
 window.addEventListener('load', fitText);
 window.addEventListener('resize', function () { clearTimeout(window.__fitT); window.__fitT = setTimeout(fitText, 120); });
+
+/* Autocompletar genérico: autocomplete(input, cajaSugerencias, url, render(item), pick(item)) */
+function autocomplete(input, box, url, render, pick) {
+  var timer, items = [], hl = -1;
+  input.addEventListener('input', function () {
+    clearTimeout(timer);
+    var q = input.value.trim();
+    if (q.length < 1) { box.classList.add('hidden'); return; }
+    timer = setTimeout(async function () {
+      var r = await api(url + '&q=' + encodeURIComponent(q));
+      items = r.data || []; hl = -1;
+      box.innerHTML = items.length ? items.map(function (it, i) { return '<div data-i="' + i + '">' + render(it) + '</div>'; }).join('') : '<div class="text-slate-400">Sin resultados</div>';
+      box.classList.remove('hidden');
+    }, 220);
+  });
+  input.addEventListener('keydown', function (e) {
+    var els = box.querySelectorAll('[data-i]');
+    if (e.key === 'ArrowDown') { hl = Math.min(hl + 1, els.length - 1); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { hl = Math.max(hl - 1, 0); e.preventDefault(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (items[hl >= 0 ? hl : 0]) { pick(items[hl >= 0 ? hl : 0]); box.classList.add('hidden'); input.value = ''; } return; }
+    els.forEach(function (el, i) { el.classList.toggle('hl', i === hl); });
+  });
+  box.addEventListener('mousedown', function (e) {
+    var d = e.target.closest('[data-i]'); if (!d) return;
+    e.preventDefault(); pick(items[d.dataset.i]); box.classList.add('hidden'); input.value = '';
+  });
+  input.addEventListener('blur', function () { setTimeout(function () { box.classList.add('hidden'); }, 150); });
+}

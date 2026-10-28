@@ -18,7 +18,7 @@ switch ($a) {
     case 'productos':
         require_perm('productos.ver');
         $t = '%' . get('q', '') . '%';
-        $list = rows("SELECT id, codigo, nombre, unidad, precio_venta, precio_contado, precio_credito, stock, foto FROM productos
+        $list = rows("SELECT id, codigo, nombre, unidad, precio_venta, precio_contado, precio_credito, stock, foto" . (is_admin() ? ', precio_compra' : '') . " FROM productos
             WHERE empresa_id=? AND activo=1 AND (nombre LIKE ? OR codigo LIKE ?) ORDER BY nombre LIMIT 15", [$eid, $t, $t]);
         json_out(['ok' => true, 'data' => $list]);
 

@@ -192,33 +192,6 @@ function precioPara(p) {
 function addMonths(d, m) { var x = new Date(d + 'T12:00:00'); var day = x.getDate(); x.setDate(1); x.setMonth(x.getMonth() + m); var last = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate(); x.setDate(Math.min(day, last)); return x.toISOString().slice(0, 10); }
 var HOY = '<?= today() ?>';
 
-/* ---- Autocompletar ---- */
-function autocomplete(input, box, url, render, pick) {
-  var timer, items = [], hl = -1;
-  input.addEventListener('input', function () {
-    clearTimeout(timer);
-    var q = input.value.trim();
-    if (q.length < 1) { box.classList.add('hidden'); return; }
-    timer = setTimeout(async function () {
-      var r = await api(url + '&q=' + encodeURIComponent(q));
-      items = r.data || []; hl = -1;
-      box.innerHTML = items.length ? items.map(function (it, i) { return '<div data-i="' + i + '">' + render(it) + '</div>'; }).join('') : '<div class="text-slate-400">Sin resultados</div>';
-      box.classList.remove('hidden');
-    }, 220);
-  });
-  input.addEventListener('keydown', function (e) {
-    var els = box.querySelectorAll('[data-i]');
-    if (e.key === 'ArrowDown') { hl = Math.min(hl + 1, els.length - 1); e.preventDefault(); }
-    else if (e.key === 'ArrowUp') { hl = Math.max(hl - 1, 0); e.preventDefault(); }
-    else if (e.key === 'Enter') { e.preventDefault(); if (items[hl >= 0 ? hl : 0]) { pick(items[hl >= 0 ? hl : 0]); box.classList.add('hidden'); input.value = ''; } return; }
-    els.forEach(function (el, i) { el.classList.toggle('hl', i === hl); });
-  });
-  box.addEventListener('mousedown', function (e) {
-    var d = e.target.closest('[data-i]'); if (!d) return;
-    e.preventDefault(); pick(items[d.dataset.i]); box.classList.add('hidden'); input.value = '';
-  });
-  input.addEventListener('blur', function () { setTimeout(function () { box.classList.add('hidden'); }, 150); });
-}
 autocomplete($('cli-q'), $('cli-sug'), 'index.php?p=api&a=clientes', function (c) {
   return '<div class="font-medium">' + escapeHtml(c.nombre + ' ' + c.apellido) + '</div><div class="text-xs text-slate-500">' + escapeHtml(c.codigo) + ' · ' + escapeHtml(c.telefono || '') + ' · ' + escapeHtml(c.area || 'Sin área') + (Number(c.saldo) > 0 ? ' · <span class="text-amber-600">Saldo ' + money(c.saldo) + '</span>' : '') + '</div>';
 }, setCliente);

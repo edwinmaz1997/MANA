@@ -49,7 +49,6 @@ if (is_post()) {
 $rng = rango_fechas();
 $list = rows('SELECT c.*, p.nombre prov, p.apellido prov_ap, (SELECT COUNT(*) FROM compra_detalle d WHERE d.compra_id=c.id) items FROM compras c LEFT JOIN proveedores p ON p.id=c.proveedor_id WHERE c.empresa_id=? AND c.fecha BETWEEN ? AND ? ORDER BY c.fecha DESC, c.id DESC', [$eid, $rng['desde'], $rng['hasta']]);
 $provs = rows('SELECT id, nombre, apellido FROM proveedores WHERE empresa_id=? AND activo=1 ORDER BY nombre', [$eid]);
-$prods = rows('SELECT id, codigo, nombre, precio_compra FROM productos WHERE empresa_id=? AND activo=1 ORDER BY nombre', [$eid]);
 $ver = (int) get('ver');
 $detalle = $ver ? rows('SELECT d.*, p.nombre FROM compra_detalle d JOIN productos p ON p.id=d.producto_id JOIN compras c ON c.id=d.compra_id WHERE d.compra_id=? AND c.empresa_id=?', [$ver, $eid]) : [];
 
@@ -71,7 +70,7 @@ filtro_fechas($rng);
   </tbody></table><?php if (!$list) echo empty_state('Sin compras en este periodo', 'truck'); ?></div></div>
 
 <div id="tpl" class="hidden">
-  <form method="post" class="p-6 space-y-4"><?= csrf_field() ?>
+  <form method="post" class="p-5 sm:p-6 space-y-4" id="fcompra"><?= csrf_field() ?>
     <h3 class="text-lg font-semibold">Nueva compra</h3>
     <div class="grid grid-cols-2 gap-3">
       <div class="col-span-2"><label class="label">Proveedor</label><select name="proveedor_id" class="select"><?= select_options($provs, '', 'id', 'nombre_completo', '— Sin proveedor —') ?></select></div>
@@ -80,30 +79,51 @@ filtro_fechas($rng);
     </div>
     <div>
       <label class="label">Productos</label>
-      <div class="lineas space-y-2"></div>
-      <button type="button" class="btn btn-light btn-sm mt-2" onclick="addLinea(this.form)"><i data-lucide="plus"></i>Agregar producto</button>
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3.5 text-slate-400"></i>
+        <input class="input pl-9 prod-q" placeholder="Buscar producto por nombre o código" autocomplete="off">
+        <div class="suggest hidden prod-sug"></div>
+      </div>
+      <div class="lineas space-y-2 mt-3"></div>
+      <div class="lineas-vacio text-center text-sm text-slate-400 py-4 border border-dashed border-slate-200 rounded-xl mt-3">Busca y agrega los productos comprados</div>
     </div>
     <div class="flex justify-between font-bold text-lg border-t pt-3"><span>Total</span><span class="ctotal">Q 0.00</span></div>
-    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="actualizar_costo" value="1" checked class="w-4 h-4"> Actualizar precio de compra de los productos</label>
+    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="actualizar_costo" value="1" checked class="w-4 h-4 mt-0.5"> Actualizar el precio de compra de los productos</label>
     <div><label class="label">Notas</label><input name="notas" class="input"></div>
-    <div class="flex gap-2"><button class="btn btn-primary flex-1">Registrar compra</button><button type="button" class="btn btn-light" onclick="closeModal()">Cancelar</button></div>
+    <div class="flex gap-2"><button class="btn btn-primary btn-lg flex-1">Registrar compra</button><button type="button" class="btn btn-light btn-lg" onclick="closeModal()">Cancelar</button></div>
   </form>
 </div>
 <script>
-var PRODS = <?= json_encode($prods) ?>;
-function nuevaCompra() { var f = openForm('tpl'); addLinea(f); }
-function addLinea(f) {
+function nuevaCompra() {
+  var f = openForm('tpl');
+  autocomplete(f.querySelector('.prod-q'), f.querySelector('.prod-sug'), 'index.php?p=api&a=productos', function (p) {
+    return '<div class="flex justify-between gap-3"><div class="min-w-0"><div class="font-medium truncate">' + escapeHtml(p.nombre) + '</div><div class="text-xs text-slate-500">' + escapeHtml(p.codigo) + ' · Stock ' + Number(p.stock) + '</div></div><div class="text-right text-sm text-slate-600 shrink-0">Costo ' + money(p.precio_compra) + '</div></div>';
+  }, function (p) { addLinea(f, p); });
+  f.addEventListener('submit', function (e) {
+    if (!f.querySelectorAll('.lineas > div').length) { e.preventDefault(); toast('Agrega al menos un producto'); setTimeout(function () { f.querySelector('button.btn-primary').disabled = false; }, 20); }
+  });
+  setTimeout(function () { f.querySelector('.prod-q').focus(); }, 50);
+}
+function addLinea(f, p) {
+  var ex = f.querySelector('.lineas > div[data-id="' + p.id + '"]');
+  if (ex) { var c = ex.querySelector('.cant'); c.value = (Number(c.value) || 0) + 1; ctot(f); return; }
   var d = document.createElement('div');
-  d.className = 'grid grid-cols-12 gap-2 items-center';
-  d.innerHTML = '<select name="producto_id[]" class="select col-span-6 !px-2" onchange="var p=PRODS.find(x=>x.id==this.value); if(p) this.parentNode.querySelector(\'.cc\').value=Number(p.precio_compra).toFixed(2); ctot(this.form)"><option value="">Producto...</option>' + PRODS.map(function (p) { return '<option value="' + p.id + '">' + escapeHtml(p.nombre) + '</option>'; }).join('') + '</select>' +
-    '<input name="cantidad[]" type="number" step="0.01" min="0" placeholder="Cant." class="input col-span-2 !px-2" oninput="ctot(this.form)">' +
-    '<input name="costo[]" type="number" step="0.01" min="0" placeholder="Costo" class="input col-span-3 !px-2 cc" oninput="ctot(this.form)">' +
-    '<button type="button" class="col-span-1 text-rose-500" onclick="var f=this.form; this.parentNode.remove(); ctot(f)"><i data-lucide="x" class="w-4 h-4"></i></button>';
-  f.querySelector('.lineas').appendChild(d); lucide.createIcons();
+  d.dataset.id = p.id;
+  d.className = 'rounded-xl border border-slate-200 p-3';
+  d.innerHTML = '<input type="hidden" name="producto_id[]" value="' + p.id + '">' +
+    '<div class="flex items-start gap-2"><div class="min-w-0 flex-1"><div class="font-semibold truncate">' + escapeHtml(p.nombre) + '</div><div class="text-xs text-slate-500">' + escapeHtml(p.codigo) + ' · Stock actual ' + Number(p.stock) + '</div></div>' +
+    '<button type="button" class="btn btn-ghost btn-icon text-rose-500 -mt-1 -mr-1" onclick="var f=this.form; this.closest(\'.lineas > div\').remove(); ctot(f)"><i data-lucide="trash-2"></i></button></div>' +
+    '<div class="grid grid-cols-3 gap-2 mt-2 items-end">' +
+    '<div><label class="text-[11px] text-slate-500">Cantidad</label><input name="cantidad[]" type="number" step="0.01" min="0.01" value="1" inputmode="decimal" class="input !px-2 cant" oninput="ctot(this.form)"></div>' +
+    '<div><label class="text-[11px] text-slate-500">Costo unit.</label><input name="costo[]" type="number" step="0.01" min="0" value="' + Number(p.precio_compra || 0).toFixed(2) + '" inputmode="decimal" class="input !px-2 cc" oninput="ctot(this.form)"></div>' +
+    '<div class="text-right"><div class="text-[11px] text-slate-500">Subtotal</div><div class="font-bold sub py-2">' + money(p.precio_compra || 0) + '</div></div></div>';
+  f.querySelector('.lineas').appendChild(d); lucide.createIcons(); ctot(f);
 }
 function ctot(f) {
-  var t = 0; f.querySelectorAll('.lineas > div').forEach(function (r) { t += (Number(r.children[1].value) || 0) * (Number(r.children[2].value) || 0); });
+  var t = 0, rows = f.querySelectorAll('.lineas > div');
+  rows.forEach(function (r) { var st = (Number(r.querySelector('.cant').value) || 0) * (Number(r.querySelector('.cc').value) || 0); t += st; r.querySelector('.sub').textContent = money(st); });
   f.querySelector('.ctotal').textContent = money(t);
+  f.querySelector('.lineas-vacio').classList.toggle('hidden', rows.length > 0);
 }
 </script>
 <?php layout_footer();

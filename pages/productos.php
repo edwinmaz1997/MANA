@@ -115,7 +115,7 @@ layout_header('Productos', ['actions' => $admin ? '<button onclick="abrirCatalog
 <div id="tpl" class="hidden">
   <form method="post" enctype="multipart/form-data" class="p-5 sm:p-6 space-y-4" id="fprod">
     <?= csrf_field() ?><input type="hidden" name="id">
-    <div class="flex items-center"><h3 class="text-lg font-semibold" data-title="Nuevo producto" data-edit="Editar producto"></h3><button type="button" class="ml-auto btn btn-ghost btn-icon" onclick="closeModal()"><i data-lucide="x"></i></button></div>
+    <div class="flex items-center"><h3 class="text-lg font-semibold" data-title="Nuevo producto" data-edit="Editar producto"></h3></div>
     <div><label class="label">Nombre *</label><input name="nombre" required class="input" autofocus></div>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div><label class="label">Código</label><input name="codigo" class="input" placeholder="Automático"></div>
@@ -168,7 +168,7 @@ layout_header('Productos', ['actions' => $admin ? '<button onclick="abrirCatalog
 
 <div id="tpl-catalogos" class="hidden">
   <div class="p-5 sm:p-6 space-y-5">
-    <div class="flex items-center"><h3 class="text-lg font-semibold">Categorías y unidades</h3><button type="button" class="ml-auto btn btn-ghost btn-icon" onclick="closeModal()"><i data-lucide="x"></i></button></div>
+    <div class="flex items-center"><h3 class="text-lg font-semibold">Categorías y unidades</h3></div>
     <?php foreach (['cat' => ['Categorías', $cats, 'Ej. Electrodomésticos'], 'uni' => ['Unidades', $unis, 'Ej. Juego']] as $k => $cfg): ?>
     <div>
       <div class="font-semibold mb-2"><?= $cfg[0] ?></div>
