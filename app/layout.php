@@ -57,9 +57,9 @@ function layout_header($title = '', array $opt = [])
 <meta name="theme-color" content="#0f172a">
 <title><?= e($title ? $title . ' · ' : '') ?><?= e($emp ? $emp['nombre'] : APP_NAME) ?></title>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="assets/styles.css?v=<?= APP_VERSION ?>">
-<script src="assets/vendor/lucide.min.js"></script>
-<script src="assets/app.js?v=<?= APP_VERSION ?>"></script>
+<link rel="stylesheet" href="<?= asset('assets/styles.css') ?>">
+<script src="<?= asset('assets/vendor/lucide.min.js') ?>"></script>
+<script src="<?= asset('assets/app.js') ?>"></script>
 <?php if (!empty($opt['charts'])): ?><script src="assets/vendor/chart.umd.min.js"></script><?php endif; ?>
 <script>window.CSRF = <?= json_encode(csrf_token()) ?>; window.MONEDA = <?= json_encode($u ? currency() : 'Q') ?>;</script>
 </head>
@@ -161,15 +161,15 @@ function filtro_fechas($rng, array $extra = [])
     echo '<form method="get" class="flex flex-wrap items-center gap-2 mb-5">';
     echo '<input type="hidden" name="p" value="' . e($p) . '">';
     foreach ($extra as $k => $v) echo '<input type="hidden" name="' . e($k) . '" value="' . e($v) . '">';
-    echo '<div class="inline-flex rounded-xl bg-white border border-slate-200 p-1">';
+    echo '<div class="flex w-full sm:w-auto overflow-x-auto rounded-xl bg-white border border-slate-200 p-1">';
     foreach ($opts as $k => $l) {
         $act = $rng['r'] === $k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100';
-        echo '<button name="r" value="' . $k . '" class="px-3 py-1.5 text-sm rounded-lg ' . $act . '">' . $l . '</button>';
+        echo '<button name="r" value="' . $k . '" class="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 text-sm rounded-lg whitespace-nowrap ' . $act . '">' . $l . '</button>';
     }
     echo '</div>';
-    echo '<div class="flex items-center gap-2 ' . ($rng['r'] === 'rango' ? '' : 'hidden') . '" id="rango-box">';
-    echo '<input type="date" name="desde" value="' . e($rng['desde']) . '" class="input !w-auto">';
-    echo '<span class="text-slate-400">a</span><input type="date" name="hasta" value="' . e($rng['hasta']) . '" class="input !w-auto">';
+    echo '<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto ' . ($rng['r'] === 'rango' ? '' : 'hidden') . '" id="rango-box">';
+    echo '<input type="date" name="desde" value="' . e($rng['desde']) . '" class="input flex-1 sm:!w-auto">';
+    echo '<span class="text-slate-400">a</span><input type="date" name="hasta" value="' . e($rng['hasta']) . '" class="input flex-1 sm:!w-auto">';
     echo '<button name="r" value="rango" class="btn btn-dark">Aplicar</button></div>';
     echo '<span class="text-sm text-slate-500 ml-1">' . fdate($rng['desde']) . ' — ' . fdate($rng['hasta']) . '</span>';
     echo '</form>';
@@ -182,8 +182,8 @@ function stat_card($label, $value, $icon, $color = 'brand', $sub = '')
         'yellow' => 'bg-amber-50 text-amber-600', 'blue' => 'bg-sky-50 text-sky-600', 'slate' => 'bg-slate-100 text-slate-600', 'violet' => 'bg-violet-50 text-violet-600',
     ];
     echo '<div class="card p-3.5 sm:p-4 lg:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-4"><div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl grid place-items-center shrink-0 ' . ($colors[$color] ?? $colors['brand']) . '"><i data-lucide="' . e($icon) . '" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>';
-    echo '<div class="min-w-0 w-full"><div class="text-xs text-slate-500 font-medium">' . e($label) . '</div><div class="text-lg sm:text-xl xl:text-2xl font-bold tracking-tight leading-tight break-words">' . $value . '</div>';
-    if ($sub) echo '<div class="text-xs text-slate-500 mt-0.5">' . $sub . '</div>';
+    echo '<div class="min-w-0 w-full"><div class="text-xs text-slate-500 font-medium">' . e($label) . '</div><div class="text-lg sm:text-xl xl:text-2xl font-bold tracking-tight leading-tight ' . (preg_match('/^[^a-z]*$/iu', strip_tags(str_replace(currency(), '', (string) $value))) ? 'fit' : 'break-anywhere') . '">' . $value . '</div>';
+    if ($sub) echo '<div class="text-xs text-slate-500 mt-0.5 break-anywhere">' . $sub . '</div>';
     echo '</div></div>';
 }
 

@@ -237,3 +237,10 @@ function wa_link($tel, $msg = '')
 }
 
 function tipo_label($t) { return $t === 'credito' ? 'Crédito' : 'Contado'; }
+
+/** Ruta de un recurso estático con versión según su fecha de modificación (evita caché vieja) */
+function asset($path)
+{
+    $f = APP_ROOT . '/' . $path;
+    return $path . '?v=' . (is_file($f) ? filemtime($f) : APP_VERSION);
+}

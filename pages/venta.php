@@ -99,7 +99,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
   <div class="lg:col-span-2 space-y-4">
     <!-- Card de venta -->
     <div class="card overflow-hidden sem-<?= $sem[0] ?>">
-      <div class="p-5 flex flex-wrap gap-4 items-start">
+      <div class="p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-stretch sm:items-start">
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-xl font-bold"><?= e($v['codigo']) ?></span>
@@ -115,9 +115,9 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
             </a>
           <?php else: ?><div class="mt-3 text-sm text-slate-500">Consumidor final</div><?php endif; ?>
         </div>
-        <div class="text-right">
-          <div class="text-xs text-slate-500">Total</div><div class="text-2xl font-extrabold"><?= money($v['total']) ?></div>
-          <?php if ($v['tipo'] === 'credito'): ?><div class="text-xs text-slate-500 mt-2">Saldo</div><div class="text-xl font-bold text-brand-700"><?= money($v['saldo']) ?></div><?php endif; ?>
+        <div class="flex flex-wrap sm:block gap-x-6 gap-y-2 sm:text-right rounded-xl sm:rounded-none bg-slate-50 sm:bg-transparent p-3 sm:p-0 shrink-0">
+          <div class="min-w-0 max-w-full"><div class="text-xs text-slate-500">Total</div><div class="text-xl sm:text-2xl font-extrabold fit"><?= money($v['total']) ?></div></div>
+          <?php if ($v['tipo'] === 'credito'): ?><div class="sm:mt-2 min-w-0 max-w-full"><div class="text-xs text-slate-500">Saldo</div><div class="text-xl font-bold text-brand-700 fit"><?= money($v['saldo']) ?></div></div><?php endif; ?>
         </div>
       </div>
       <?php if ($v['tipo'] === 'credito'): ?>
@@ -128,7 +128,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
             <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Plazo</div><div class="font-semibold"><?= (int) $v['plazo_meses'] ?> meses · <?= e($v['frecuencia']) ?></div></div>
             <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Cuota</div><div class="font-semibold"><?= $v['cuota_monto'] ? money($v['cuota_monto']) : '—' ?></div></div>
             <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Enganche</div><div class="font-semibold"><?= money($v['enganche_monto']) ?></div><div class="text-xs <?= $pendEng ? 'text-amber-600 font-semibold' : 'text-slate-500' ?>"><?= $v['fecha_enganche'] ? fdate($v['fecha_enganche']) : 'Pendiente de enganche' ?></div></div>
-            <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Próximo pago</div><div class="font-semibold"><?= $v['prox_venc'] ? fdate($v['prox_venc']) : ($v['fecha_primer_abono'] ? fdate($v['fecha_primer_abono']) : '—') ?></div><?php if ($v['monto_vencido'] > 0): ?><div class="text-xs text-rose-600 font-semibold">Vencido <?= money($v['monto_vencido']) ?></div><?php endif; ?></div>
+            <div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">Próximo pago</div><div class="font-semibold"><?= $v['estado'] !== 'activa' ? '—' : ($v['prox_venc'] ? fdate($v['prox_venc']) : ($v['fecha_primer_abono'] ? fdate($v['fecha_primer_abono']) : '—')) ?></div><?php if ($v['monto_vencido'] > 0 && $v['estado'] === 'activa'): ?><div class="text-xs text-rose-600 font-semibold">Vencido <?= money($v['monto_vencido']) ?></div><?php endif; ?></div>
           </div>
         </div>
       <?php endif; ?>
@@ -137,7 +137,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
     <!-- Productos -->
     <div class="card overflow-hidden">
       <div class="card-h"><i data-lucide="package" class="w-4 h-4 text-brand-600"></i> Productos</div>
-      <div class="overflow-x-auto"><table class="table table-keep">
+      <div class="overflow-x-auto"><table class="table">
         <thead><tr><th>Descripción</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
         <tbody>
           <?php foreach ($det as $d): ?><tr><td><?= e($d['descripcion']) ?></td><td class="num"><?= num($d['cantidad'], $d['cantidad'] == floor($d['cantidad']) ? 0 : 2) ?></td><td class="num"><?= money($d['precio_unitario']) ?></td><td class="num"><?= money($d['subtotal']) ?></td></tr><?php endforeach; ?>

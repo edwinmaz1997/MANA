@@ -20,7 +20,7 @@ if (is_post()) {
 <meta name="theme-color" content="#0f172a">
 <title>Ingresar · <?= APP_NAME ?></title>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="assets/styles.css?v=<?= APP_VERSION ?>">
+<link rel="stylesheet" href="<?= asset('assets/styles.css') ?>">
 <style>body{font-family:Inter,system-ui,sans-serif}</style>
 </head>
 <body class="min-h-screen bg-slate-950 text-white grid lg:grid-cols-2">

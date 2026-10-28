@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (window.lucide) lucide.createIcons();
   document.querySelectorAll('.flash').forEach(function (f) { setTimeout(function () { f.style.transition = 'opacity .4s'; f.style.opacity = 0; setTimeout(function () { f.remove(); }, 400); }, 5000); });
   document.querySelectorAll('button[name=r]').forEach(function (b) {
-    if (b.value === 'rango' && b.closest('.inline-flex')) b.addEventListener('click', function (e) { var box = document.getElementById('rango-box'); if (box && box.classList.contains('hidden')) { e.preventDefault(); box.classList.remove('hidden'); } });
+    if (b.value === 'rango' && !b.closest('#rango-box')) b.addEventListener('click', function (e) { var box = document.getElementById('rango-box'); if (box && box.classList.contains('hidden')) { e.preventDefault(); box.classList.remove('hidden'); } });
   });
   // Vista previa de imágenes
   document.querySelectorAll('input[type=file][data-preview]').forEach(function (inp) {
@@ -108,9 +108,27 @@ function responsiveTables(root) {
       var i = 0;
       Array.prototype.forEach.call(tr.children, function (td) {
         if (!td.hasAttribute('data-label')) td.setAttribute('data-label', td.hasAttribute('colspan') ? '' : (heads[i] || ''));
+        var nodes = Array.prototype.filter.call(td.childNodes, function (n) { return n.nodeType === 1 || (n.nodeType === 3 && n.textContent.trim()); });
+        if (nodes.length > 1 && !td.querySelector(':scope > .td-v')) {
+          var w = document.createElement('div'); w.className = 'td-v';
+          while (td.firstChild) w.appendChild(td.firstChild);
+          td.appendChild(w);
+        }
         i += parseInt(td.getAttribute('colspan') || '1', 10);
       });
     });
   });
 }
 document.addEventListener('DOMContentLoaded', function () { responsiveTables(); });
+
+/* Ajusta el tamaño de letra de los montos para que nunca se salgan de su tarjeta */
+function fitText() {
+  document.querySelectorAll('.fit').forEach(function (el) {
+    el.style.fontSize = '';
+    var size = parseFloat(getComputedStyle(el).fontSize), min = 11;
+    while (el.scrollWidth > el.clientWidth + 1 && size > min) { size -= 1; el.style.fontSize = size + 'px'; }
+  });
+}
+document.addEventListener('DOMContentLoaded', fitText);
+window.addEventListener('load', fitText);
+window.addEventListener('resize', function () { clearTimeout(window.__fitT); window.__fitT = setTimeout(fitText, 120); });
