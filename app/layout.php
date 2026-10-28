@@ -207,16 +207,17 @@ function filtro_fechas($rng, array $extra = [])
     echo '</form>';
 }
 
-function stat_card($label, $value, $icon, $color = 'brand', $sub = '')
+function stat_card($label, $value, $icon, $color = 'brand', $sub = '', $url = null)
 {
     $colors = [
         'brand' => 'bg-brand-50 text-brand-600', 'green' => 'bg-emerald-50 text-emerald-600', 'red' => 'bg-rose-50 text-rose-600',
         'yellow' => 'bg-amber-50 text-amber-600', 'blue' => 'bg-sky-50 text-sky-600', 'slate' => 'bg-slate-100 text-slate-600', 'violet' => 'bg-violet-50 text-violet-600',
     ];
-    echo '<div class="card p-3.5 sm:p-4 lg:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-4"><div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl grid place-items-center shrink-0 ' . ($colors[$color] ?? $colors['brand']) . '"><i data-lucide="' . e($icon) . '" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>';
+    $tag = $url ? 'a href="' . e($url) . '"' : 'div';
+    echo '<' . $tag . ' class="card p-3.5 sm:p-4 lg:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-4' . ($url ? ' relative hover:border-brand-300 hover:shadow-md active:scale-[.99] transition' : '') . '"><div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl grid place-items-center shrink-0 ' . ($colors[$color] ?? $colors['brand']) . '"><i data-lucide="' . e($icon) . '" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>';
     echo '<div class="min-w-0 w-full"><div class="text-xs text-slate-500 font-medium">' . e($label) . '</div><div class="text-lg sm:text-xl xl:text-2xl font-bold tracking-tight leading-tight ' . (preg_match('/^[^a-z]*$/iu', strip_tags(str_replace(currency(), '', (string) $value))) ? 'fit' : 'break-anywhere') . '">' . $value . '</div>';
     if ($sub) echo '<div class="text-xs text-slate-500 mt-0.5 break-anywhere">' . $sub . '</div>';
-    echo '</div></div>';
+    echo '</div>' . ($url ? '<i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 absolute right-3 top-3.5 sm:top-1/2 sm:-translate-y-1/2"></i></a>' : '</div>');
 }
 
 function empty_state($msg, $icon = 'inbox')

@@ -16,6 +16,9 @@ if (in_array($tipo, ['contado', 'credito'], true)) { $w .= ' AND v.tipo = ?'; $p
 if (in_array($estado, ['activa', 'pagada', 'anulada', 'recogida'], true)) { $w .= ' AND v.estado = ?'; $params[] = $estado; }
 if ($estado === 'pend_eng') { $w .= " AND v.tipo='credito' AND v.estado='activa' AND v.fecha_enganche IS NULL AND v.enganche_monto > 0"; }
 if ($estado === 'recoger') { $w .= " AND v.tipo='credito' AND v.estado='activa' AND v.recoger_producto=1"; }
+$fd = get('desde'); $fh = get('hasta');
+if ($fd && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fd)) { $w .= ' AND v.fecha >= ?'; $params[] = $fd; } else $fd = null;
+if ($fh && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fh)) { $w .= ' AND v.fecha <= ?'; $params[] = $fh; } else $fh = null;
 if ($qstr !== '') { $w .= " AND (v.codigo LIKE ? OR CONCAT(c.nombre,' ',c.apellido) LIKE ? OR c.codigo LIKE ?)"; $l = "%$qstr%"; array_push($params, $l, $l, $l); }
 
 $sql = "SELECT v.*, c.nombre, c.apellido, c.codigo cli_codigo, u.nombre vendedor, " . sql_credito_cols() . "
@@ -42,13 +45,16 @@ $tabs = ['' => 'Todas', 'credito' => 'Créditos', 'contado' => 'Contado'];
   <a href="<?= url('ventas', ['tipo' => 'credito', 'sem' => 'rojo']) ?>" class="tab <?= $sem === 'rojo' ? 'active' : '' ?>"><?= semaforo_dot('rojo') ?> Atraso grave</a>
 </div>
 <form class="flex flex-col sm:flex-row gap-2 mb-4">
-  <input type="hidden" name="p" value="ventas"><input type="hidden" name="tipo" value="<?= e($tipo) ?>"><input type="hidden" name="sem" value="<?= e($sem) ?>">
+  <input type="hidden" name="p" value="ventas"><input type="hidden" name="tipo" value="<?= e($tipo) ?>"><input type="hidden" name="sem" value="<?= e($sem) ?>"><?php if ($fd): ?><input type="hidden" name="desde" value="<?= e($fd) ?>"><?php endif; ?><?php if ($fh): ?><input type="hidden" name="hasta" value="<?= e($fh) ?>"><?php endif; ?>
   <input type="search" name="q" value="<?= e($qstr) ?>" class="input flex-1" placeholder="Buscar por código de venta o cliente">
   <select name="estado" class="select sm:w-52">
     <?php foreach (['' => 'Todos los estados', 'activa' => 'Activas', 'pend_eng' => 'Pendiente de enganche', 'recoger' => 'Marcadas para recoger', 'pagada' => 'Pagadas', 'recogida' => 'Recogidas', 'anulada' => 'Anuladas'] as $k => $l) echo '<option value="' . $k . '"' . ($estado === $k ? ' selected' : '') . '>' . $l . '</option>'; ?>
   </select>
   <?php if ($vendedores): ?><select name="vendedor" class="select sm:w-48"><?= select_options($vendedores, $vend, 'id', 'nombre_completo', 'Todos los vendedores') ?></select><?php endif; ?>
 </form>
+<?php if ($fd || $fh): $sinF = $_GET; unset($sinF['desde'], $sinF['hasta'], $sinF['pg']); ?>
+<div class="mb-3"><span class="inline-flex items-center gap-2 rounded-full bg-brand-50 border border-brand-100 text-brand-800 text-sm px-3 py-1"><i data-lucide="calendar" class="w-4 h-4"></i><?= $fd === $fh ? ($fd === today() ? 'Hoy' : fdate($fd)) : fdate($fd) . ' – ' . fdate($fh) ?><a href="index.php?<?= e(http_build_query($sinF)) ?>" class="ml-1 text-brand-500 hover:text-brand-800" aria-label="Quitar filtro"><i data-lucide="x" class="w-4 h-4"></i></a></span></div>
+<?php endif; ?>
 <div class="text-sm text-slate-500 mb-2"><?= num($total) ?> resultado(s) · Saldo pendiente: <b class="text-slate-800"><?= money($sumSaldo) ?></b></div>
 
 <div class="card overflow-hidden">
