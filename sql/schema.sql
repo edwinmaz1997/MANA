@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS productos (
   categoria_id INT UNSIGNED NULL,
   unidad VARCHAR(30) NOT NULL DEFAULT 'Unidad',
   precio_compra DECIMAL(12,2) NOT NULL DEFAULT 0,
-  precio_venta DECIMAL(12,2) NOT NULL DEFAULT 0,
+  precio_venta DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT 'Costo real = compra + descuento comisión',
   descuento_comision DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT 'Comisión del vendedor por unidad',
   precio_contado DECIMAL(12,2) NOT NULL DEFAULT 0,
   precio_credito DECIMAL(12,2) NOT NULL DEFAULT 0,

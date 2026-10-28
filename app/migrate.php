@@ -16,6 +16,10 @@ function migraciones()
             "ALTER TABLE abonos ADD COLUMN editado_por INT UNSIGNED NULL AFTER monto_original",
             "ALTER TABLE abonos ADD COLUMN editado_at DATETIME NULL AFTER editado_por",
         ],
+        '2026_10_28_costo_real' => [
+            // precio_venta pasa a ser "Costo real" (compra + comisión) y el precio de venta al contado se digita en precio_contado
+            "UPDATE productos SET precio_contado = IF(precio_venta > 0, precio_venta, precio_contado), precio_venta = precio_compra + descuento_comision",
+        ],
         '2026_10_28_notificaciones' => [
             "CREATE TABLE IF NOT EXISTS notif_vistas (usuario_id INT UNSIGNED NOT NULL, clave VARCHAR(120) NOT NULL, visto_at DATETIME DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (usuario_id, clave)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ],

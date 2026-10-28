@@ -54,7 +54,7 @@ function reporte_csv($tipo, $D, $H)
         case 'inventario':
             $rows = rows("SELECT p.codigo, p.nombre, c.nombre cat, p.unidad, p.precio_compra, p.descuento_comision, p.precio_venta, p.precio_contado, p.precio_credito, p.stock, p.stock_minimo, p.stock*p.precio_compra valor
                 FROM productos p LEFT JOIN categorias c ON c.id=p.categoria_id WHERE p.empresa_id=? AND p.activo=1 ORDER BY p.nombre", [$eid]);
-            csv_salida('inventario_' . date('Y-m-d'), ['Código', 'Producto', 'Categoría', 'Unidad', 'Precio compra', 'Descuento comisión', 'Precio venta', 'Precio contado', 'Precio crédito', 'Stock', 'Stock mínimo', 'Valor (costo)'], $rows);
+            csv_salida('inventario_' . date('Y-m-d'), ['Código', 'Producto', 'Categoría', 'Unidad', 'Precio compra', 'Descuento comisión', 'Costo real', 'Precio contado', 'Precio crédito', 'Stock', 'Stock mínimo', 'Valor (costo)'], $rows);
 
         case 'creditos':
             $list = rows("SELECT v.*, c.codigo cli_codigo, c.nombre, c.apellido, c.telefono, a.nombre area, " . sql_credito_cols() . "

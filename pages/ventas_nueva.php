@@ -186,8 +186,9 @@ var state = { cliente: <?= json_encode($cliente) ?>, lineas: [] };
 var $ = function (id) { return document.getElementById(id); };
 function tipo() { return document.querySelector('input[name=tipo]:checked').value; }
 function precioPara(p) {
-  var v = tipo() === 'credito' ? Number(p.precio_credito) : Number(p.precio_contado);
-  return v > 0 ? v : Number(p.precio_venta);
+  var contado = Number(p.precio_contado), credito = Number(p.precio_credito);
+  if (tipo() === 'credito') return credito > 0 ? credito : (contado > 0 ? contado : Number(p.precio_venta));
+  return contado > 0 ? contado : Number(p.precio_venta);
 }
 function addMonths(d, m) { var x = new Date(d + 'T12:00:00'); var day = x.getDate(); x.setDate(1); x.setMonth(x.getMonth() + m); var last = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate(); x.setDate(Math.min(day, last)); return x.toISOString().slice(0, 10); }
 var HOY = '<?= today() ?>';

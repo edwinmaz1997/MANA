@@ -35,7 +35,7 @@ if (is_post()) {
         foreach ($lineas as $l) {
             insert('compra_detalle', ['compra_id' => $cid, 'producto_id' => $l[0], 'cantidad' => $l[1], 'costo_unitario' => $l[2], 'subtotal' => round($l[1] * $l[2], 2)]);
             q('UPDATE productos SET stock=stock+? WHERE id=?', [$l[1], $l[0]]);
-            if (post('actualizar_costo') && $l[2] > 0) q('UPDATE productos SET precio_compra=?, precio_contado = ? + descuento_comision WHERE id=?', [$l[2], $l[2], $l[0]]);
+            if (post('actualizar_costo') && $l[2] > 0) q('UPDATE productos SET precio_compra=?, precio_venta = ? + descuento_comision WHERE id=?', [$l[2], $l[2], $l[0]]);
         }
         db()->commit();
         flash('success', 'Compra registrada por ' . money($total));

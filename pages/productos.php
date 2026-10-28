@@ -48,8 +48,9 @@ if (is_post()) {
         $desc = dec(post('descuento_comision'));
         $data = [
             'nombre' => post('nombre'), 'categoria_id' => $catId, 'unidad' => post('unidad') ?: 'Unidad',
-            'precio_compra' => $compra, 'precio_venta' => dec(post('precio_venta')), 'descuento_comision' => $desc,
-            'precio_contado' => post('precio_contado') !== '' ? dec(post('precio_contado')) : $compra + $desc,
+            // precio_venta = "Costo real" (compra + descuento comisión, se calcula siempre)
+            'precio_compra' => $compra, 'precio_venta' => round($compra + $desc, 2), 'descuento_comision' => $desc,
+            'precio_contado' => dec(post('precio_contado')),
             'precio_credito' => dec(post('precio_credito')), 'stock_minimo' => dec(post('stock_minimo')),
         ];
         if ($data['nombre'] === '') throw new RuntimeException('El nombre es obligatorio');
@@ -94,14 +95,14 @@ layout_header('Productos', ['actions' => $admin ? '<a href="' . url('importar', 
 </form>
 <?php if ($admin): ?><div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"><?php stat_card('Productos', num($nTot), 'package', 'brand'); stat_card('Valor del inventario (costo)', money($valorInv), 'warehouse', 'green'); ?></div><?php endif; ?>
 <div class="card overflow-hidden"><div class="overflow-x-auto"><table class="table">
-  <thead><tr><th>Producto</th><th>Categoría</th><?php if ($admin): ?><th class="num">Compra</th><th class="num">Comisión</th><?php endif; ?><th class="num">Venta</th><th class="num">Contado</th><th class="num">Crédito</th><th class="num">Stock</th><th></th></tr></thead>
+  <thead><tr><th>Producto</th><th>Categoría</th><?php if ($admin): ?><th class="num">Compra</th><th class="num">Comisión</th><th class="num">Costo real</th><?php endif; ?><th class="num">Contado</th><th class="num">Crédito</th><th class="num">Stock</th><th></th></tr></thead>
   <tbody>
   <?php foreach ($list as $p): ?>
     <tr>
       <td><div class="flex items-center gap-3"><?php if ($p['foto']): ?><img src="<?= e($p['foto']) ?>" class="thumb"><?php endif; ?><div><div class="font-semibold"><?= e($p['nombre']) ?></div><div class="text-xs text-slate-500"><?= e($p['codigo']) ?> · <?= e($p['unidad']) ?></div></div></div></td>
       <td><?= e($p['categoria'] ?: '—') ?></td>
       <?php if ($admin): ?><td class="num"><?= money($p['precio_compra']) ?></td><td class="num text-slate-500"><?= money($p['descuento_comision']) ?></td><?php endif; ?>
-      <td class="num"><?= money($p['precio_venta']) ?></td>
+      <?php if ($admin): ?><td class="num text-slate-500"><?= money($p['precio_venta']) ?></td><?php endif; ?>
       <td class="num font-semibold"><?= money($p['precio_contado']) ?></td>
       <td class="num font-semibold text-brand-700"><?= money($p['precio_credito']) ?></td>
       <td class="num"><span class="badge <?= $p['stock'] <= 0 ? 'badge-red' : ($p['stock'] <= $p['stock_minimo'] ? 'badge-yellow' : 'badge-green') ?>"><?= num($p['stock'], $p['stock'] == floor($p['stock']) ? 0 : 2) ?></span></td>
@@ -136,15 +137,16 @@ layout_header('Productos', ['actions' => $admin ? '<a href="' . url('importar', 
     <div class="rounded-xl border border-slate-200 p-3 sm:p-4 space-y-3">
       <div class="text-xs font-semibold text-slate-500 uppercase">Precios</div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div><label class="label">Precio compra</label><input name="precio_compra" type="number" step="0.01" min="0" inputmode="decimal" class="input" oninput="calcContado(this.form)"></div>
-        <div><label class="label">Desc. comisión</label><input name="descuento_comision" type="number" step="0.01" min="0" inputmode="decimal" class="input" oninput="calcContado(this.form)"></div>
-        <div class="col-span-2 sm:col-span-1"><label class="label">Precio venta</label><input name="precio_venta" type="number" step="0.01" min="0" inputmode="decimal" class="input"></div>
+        <div><label class="label">Precio compra</label><input name="precio_compra" type="number" step="0.01" min="0" inputmode="decimal" class="input" oninput="calcCosto(this.form)"></div>
+        <div><label class="label">Desc. comisión</label><input name="descuento_comision" type="number" step="0.01" min="0" inputmode="decimal" class="input" oninput="calcCosto(this.form)"></div>
+        <div class="col-span-2 sm:col-span-1"><label class="label">Costo real</label><input name="precio_venta" type="number" step="0.01" class="input bg-slate-50 text-slate-600" readonly tabindex="-1"></div>
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="label">Precio contado</label><input name="precio_contado" type="number" step="0.01" min="0" inputmode="decimal" class="input bg-slate-50"></div>
+        <div><label class="label">Precio contado</label><input name="precio_contado" type="number" step="0.01" min="0" inputmode="decimal" class="input"></div>
         <div><label class="label">Precio crédito</label><input name="precio_credito" type="number" step="0.01" min="0" inputmode="decimal" class="input"></div>
       </div>
-      <p class="hint !mt-1">Contado = compra + descuento comisión (se calcula solo, puedes cambiarlo). Crédito = precio a plazo largo.</p>
+      <p class="hint !mt-1">Costo real = compra + descuento comisión (automático). Contado = precio de venta al contado. Crédito = precio a plazo largo.</p>
+      <p class="hint !mt-0 text-amber-600 hidden margen-aviso">El precio de contado es menor al costo real.</p>
     </div>
     <div class="grid grid-cols-2 gap-3">
       <div data-onlynew><label class="label">Stock inicial</label><input name="stock" type="number" step="0.01" min="0" inputmode="decimal" class="input" value="0"></div>
@@ -187,7 +189,9 @@ layout_header('Productos', ['actions' => $admin ? '<a href="' . url('importar', 
   </div>
 </div>
 <script>
-function calcContado(f) { var c = parseFloat(f.precio_compra.value) || 0, d = parseFloat(f.descuento_comision.value) || 0; f.precio_contado.value = (c + d).toFixed(2); }
+function calcCosto(f) { var c = parseFloat(f.precio_compra.value) || 0, d = parseFloat(f.descuento_comision.value) || 0; f.precio_venta.value = (c + d).toFixed(2); chkMargen(f); }
+function chkMargen(f) { var ct = parseFloat(f.precio_contado.value) || 0, cr = parseFloat(f.precio_venta.value) || 0; f.querySelector('.margen-aviso').classList.toggle('hidden', !(ct > 0 && ct < cr)); }
+document.addEventListener('input', function (e) { if (e.target.name === 'precio_contado' && e.target.form && e.target.form.getAttribute('id') === 'fprod') chkMargen(e.target.form); });
 function nuevoProducto() { var f = openForm('tpl', { unidad: <?= json_encode(in_array('Unidad', array_column($unis, 'nombre'), true) ? 'Unidad' : ($unis ? $unis[0]['nombre'] : '')) ?> }); }
 function editarProducto(d) {
   var sel = document.getElementById('tpl').querySelector('select[name=unidad]');

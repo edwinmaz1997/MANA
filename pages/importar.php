@@ -15,15 +15,14 @@ $cfg = [
             ['unidad', 'Unidad', 'Ej. Unidad, Juego, Caja. Si no existe, se crea.'],
             ['precio_compra', 'Precio compra', 'Número sin "Q".'],
             ['descuento_comision', 'Descuento comisión', 'Comisión del vendedor por unidad.'],
-            ['precio_venta', 'Precio venta', ''],
-            ['precio_contado', 'Precio contado', 'Vacío = compra + descuento comisión.'],
+            ['precio_contado', 'Precio contado', 'Precio de venta al contado. (El costo real = compra + descuento comisión se calcula solo.)'],
             ['precio_credito', 'Precio crédito', ''],
             ['stock', 'Stock', 'Solo para productos nuevos (los existentes se ajustan con Compras).'],
             ['stock_minimo', 'Stock mínimo', ''],
         ],
         'ejemplo' => [
-            ['P-1001', 'Refrigeradora LG 14 pies', 'Electrodomésticos', 'Unidad', 3000, 400, 3700, '', 5400, 5, 1],
-            ['', 'Juego de sala 3 piezas', 'Muebles', 'Juego', 2500, 350, 3200, '', 4800, 2, 1],
+            ['P-1001', 'Refrigeradora LG 14 pies', 'Electrodomésticos', 'Unidad', 3000, 400, 4200, 5400, 5, 1],
+            ['', 'Juego de sala 3 piezas', 'Muebles', 'Juego', 2500, 350, 3500, 4800, 2, 1],
         ],
     ],
     'clientes' => [
@@ -93,8 +92,8 @@ if (is_post()) {
                     if (!isset($cache['uni'][$k])) { if (!val('SELECT id FROM unidades WHERE empresa_id=? AND nombre=?', [$eid, $un])) insert('unidades', ['empresa_id' => $eid, 'nombre' => mb_substr($un, 0, 40)]); $cache['uni'][$k] = 1; }
                     $compra = num_imp($d['precio_compra'] ?? 0); $desc = num_imp($d['descuento_comision'] ?? 0);
                     $data = ['nombre' => mb_substr($d['nombre'], 0, 150), 'categoria_id' => $catId, 'unidad' => mb_substr($un, 0, 30),
-                        'precio_compra' => $compra, 'descuento_comision' => $desc, 'precio_venta' => num_imp($d['precio_venta'] ?? 0),
-                        'precio_contado' => ($d['precio_contado'] ?? '') !== '' ? num_imp($d['precio_contado']) : $compra + $desc,
+                        'precio_compra' => $compra, 'descuento_comision' => $desc, 'precio_venta' => round($compra + $desc, 2),
+                        'precio_contado' => num_imp($d['precio_contado'] ?? 0),
                         'precio_credito' => num_imp($d['precio_credito'] ?? 0), 'stock_minimo' => num_imp($d['stock_minimo'] ?? 0)];
                     $existe = $codigo !== '' ? val('SELECT id FROM productos WHERE empresa_id=? AND codigo=?', [$eid, $codigo]) : null;
                     if ($existe) {
