@@ -1,0 +1,58 @@
+name: Deploy FTP
+
+on:
+  push:
+    branches: [dev, produccion]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ftp.estudiocero.com.gt
+      FTP_USERNAME: deploy@mana.nuevaexpress.com
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      # produccion -> raíz del FTP | dev -> carpeta /dev/
+      SERVER_DIR: ${{ github.ref_name == 'produccion' && './' || './dev/' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: none
+
+      - name: Validar sintaxis PHP
+        run: |
+          find . -type f -name "*.php" -not -path "./vendor/*" -print0 \
+            | xargs -0 -r -n1 php -l > /dev/null
+
+      - name: Verificar secret FTP_PASSWORD
+        run: |
+          if [ -z "$FTP_PASSWORD" ]; then
+            echo "::error::Falta el secret FTP_PASSWORD en Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
+      - name: Subir por FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ env.FTP_SERVER }}
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          server-dir: ${{ env.SERVER_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/node_modules/**
+            **/.env
+            README.md
+          log-level: standard
