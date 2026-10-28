@@ -105,6 +105,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
             <span class="text-xl font-bold"><?= e($v['codigo']) ?></span>
             <span class="badge <?= $v['tipo'] === 'credito' ? 'badge-violet' : 'badge-gray' ?>"><?= e(tipo_label($v['tipo'])) ?></span>
             <span class="badge <?= $sem[2] ?>"><?= semaforo_dot($sem[0]) ?> <?= e($sem[1]) ?></span>
+            <?php if ($v['proxima_visita'] && $v['estado'] === 'activa'): ?><span class="badge badge-violet"><i data-lucide="calendar-check" class="w-3 h-3"></i> Próxima visita <?= fdate($v['proxima_visita']) ?></span><?php endif; ?>
             <?php if ($v['recoger_producto'] && $v['estado'] === 'activa'): ?><span class="badge badge-red"><i data-lucide="package-x" class="w-3 h-3"></i> Recoger producto</span><?php endif; ?>
           </div>
           <div class="text-sm text-slate-500 mt-1"><?= fdate($v['fecha']) ?> · Vendedor: <?= e(nombre_completo($vend)) ?></div>

@@ -17,13 +17,24 @@ if (is_post()) {
     }
     if ($acc === 'visita') {
         $vid = (int) post('visita_id');
-        $vis = row('SELECT rv.* FROM ruta_visitas rv JOIN rutas r ON r.id=rv.ruta_id WHERE rv.id=? AND r.empresa_id=?', [$vid, $eid]);
+        $vis = row('SELECT rv.*, r.fecha ruta_fecha FROM ruta_visitas rv JOIN rutas r ON r.id=rv.ruta_id WHERE rv.id=? AND r.empresa_id=?', [$vid, $eid]);
         if (!$vis) json_out(['ok' => false, 'error' => 'Visita no encontrada']);
         $est = in_array(post('estado'), ['no_pago', 'no_encontrado', 'pendiente'], true) ? post('estado') : 'no_pago';
-        update('ruta_visitas', ['estado' => $est, 'visitado_at' => $est === 'pendiente' ? null : now(), 'nota' => nullable(post('nota')), 'lat' => nullable(post('lat')), 'lng' => nullable(post('lng'))], 'id=?', [$vid]);
+        $nota = nullable(post('nota'));
+        $regreso = null;
+        if ($est === 'no_encontrado') {
+            $regreso = date('Y-m-d', strtotime($vis['ruta_fecha'] . ' +1 day'));
+        } elseif ($est === 'no_pago') {
+            if (!$nota) json_out(['ok' => false, 'error' => 'Describe el motivo por el que no pagó']);
+            $regreso = (string) post('regreso');
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $regreso)) json_out(['ok' => false, 'error' => 'Indica la fecha en que regresarás']);
+            if ($regreso <= $vis['ruta_fecha']) json_out(['ok' => false, 'error' => 'La fecha de regreso debe ser posterior a hoy']);
+        }
+        update('ruta_visitas', ['estado' => $est, 'visitado_at' => $est === 'pendiente' ? null : now(), 'nota' => $nota, 'reprogramar_para' => $regreso, 'lat' => nullable(post('lat')), 'lng' => nullable(post('lng'))], 'id=?', [$vid]);
+        update('ventas', ['proxima_visita' => $regreso], 'id=?', [$vis['venta_id']]);
         if ($est !== 'pendiente') {
             $txt = ['no_pago' => 'Visita: cliente NO PAGÓ', 'no_encontrado' => 'Visita: cliente NO ENCONTRADO'][$est];
-            chat_sistema($vis['venta_id'], $txt . (post('nota') ? ' — ' . post('nota') : ''));
+            chat_sistema($vis['venta_id'], $txt . ($nota ? ' — ' . $nota : '') . '. Próxima visita: ' . fdate($regreso));
         }
         json_out(['ok' => true]);
     }
@@ -35,7 +46,7 @@ if ($fecha === today() && ($cob['rol'] === 'cobrador' || is_admin())) {
 }
 $ruta = row('SELECT * FROM rutas WHERE empresa_id=? AND fecha=? AND cobrador_id=?', [$eid, $fecha, $cobId]);
 $visitas = $ruta ? rows("SELECT rv.*, c.nombre, c.apellido, c.codigo cli_codigo, c.telefono, c.direccion, c.maps_url, c.lat clat, c.lng clng, c.foto_casa, a.nombre area,
-        v.codigo, v.saldo, v.cuota_monto, v.enganche_monto, v.fecha_enganche, v.estado vestado, v.tipo, v.fecha, v.ultimo_abono, ab.monto abono_monto, " . sql_credito_cols() . "
+        v.codigo, v.saldo, v.cuota_monto, v.proxima_visita, v.enganche_monto, v.fecha_enganche, v.estado vestado, v.tipo, v.fecha, v.ultimo_abono, ab.monto abono_monto, " . sql_credito_cols() . "
     FROM ruta_visitas rv JOIN ventas v ON v.id=rv.venta_id LEFT JOIN clientes c ON c.id=rv.cliente_id LEFT JOIN areas a ON a.id=rv.area_id LEFT JOIN abonos ab ON ab.id=rv.abono_id AND ab.anulado=0
     WHERE rv.ruta_id=? AND rv.estado<>'reprogramada' ORDER BY (rv.estado='pendiente') DESC, rv.atrasada DESC, rv.orden", [$ruta['id']]) : [];
 $res = resumen_cobrador($cobId, $fecha, $fecha);
@@ -76,7 +87,7 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
     $sugerido = $pendEng ? $x['enganche_monto'] : ((float) $x['monto_exigible'] > 0 ? (float) $x['monto_exigible'] : (float) $x['cuota_monto']);
     $sugerido = min($sugerido, (float) $x['saldo']);
     $map = maps_link(['maps_url' => $x['maps_url'], 'lat' => $x['clat'], 'lng' => $x['clng']]);
-    $estados = ['pendiente' => ['badge-gray', 'Pendiente'], 'pago' => ['badge-green', 'Pagó ' . money($x['abono_monto'])], 'no_pago' => ['badge-red', 'No pagó'], 'no_encontrado' => ['badge-yellow', 'No encontrado']];
+    $estados = ['pendiente' => ['badge-gray', 'Pendiente'], 'pago' => ['badge-green', 'Pagó ' . money($x['abono_monto'])], 'no_pago' => ['badge-red', 'No pagó · vuelve ' . fdate($x['reprogramar_para'])], 'no_encontrado' => ['badge-yellow', 'No encontrado · vuelve ' . fdate($x['reprogramar_para'])]];
     $eb = $estados[$x['estado']] ?? ['badge-gray', $x['estado']]; ?>
   <div class="card overflow-hidden sem-<?= $s[0] ?> visita" data-estado="<?= $x['estado'] === 'pendiente' ? 'pendiente' : 'hecha' ?>">
     <div class="p-4 flex gap-3">
@@ -89,6 +100,7 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
         <div class="text-xs text-slate-600 mt-1 line-clamp-2"><?= e($x['direccion']) ?></div>
         <div class="flex flex-wrap gap-1.5 mt-2">
           <span class="badge <?= $s[2] ?>"><?= e($s[1]) ?></span>
+          <?php if ($x['proxima_visita'] === $fecha && $x['estado'] === 'pendiente'): ?><span class="badge badge-violet"><i data-lucide="calendar-check" class="w-3 h-3"></i> Visita agendada</span><?php endif; ?>
           <?php if ($x['atrasada']): ?><span class="badge badge-red"><i data-lucide="clock-alert" class="w-3 h-3"></i> Visita atrasada · <?= fdate($x['fecha_programada']) ?></span><?php endif; ?>
         </div>
       </div>
@@ -121,6 +133,7 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
 
 <script>
 var RUTA_URL = 'index.php?p=ruta&cobrador=<?= $cobId ?>&fecha=<?= e($fecha) ?>';
+var MANANA = '<?= date('Y-m-d', strtotime($fecha . ' +1 day')) ?>', MANANA_TXT = '<?= fdate(date('Y-m-d', strtotime($fecha . ' +1 day'))) ?>';
 document.querySelectorAll('#ftabs .tab').forEach(function (t) {
   t.addEventListener('click', function () {
     document.querySelectorAll('#ftabs .tab').forEach(function (x) { x.classList.remove('active'); }); t.classList.add('active');
@@ -144,9 +157,27 @@ function cobrar(d) {
   });
 }
 function noPago(id) {
-  openModal('<form class="p-6 space-y-4" id="fn"><h3 class="text-lg font-semibold">Registrar visita sin pago</h3><div class="seg"><input type="radio" name="estado" id="e1" value="no_pago" checked><label for="e1">No pagó</label><input type="radio" name="estado" id="e2" value="no_encontrado"><label for="e2">No encontrado</label></div><div><label class="label">Nota / motivo</label><input name="nota" class="input" placeholder="Ej. Paga el viernes" autofocus></div><button class="btn btn-danger btn-lg w-full">Guardar visita</button></form>');
+  openModal('<form class="p-6 space-y-4" id="fn"><h3 class="text-lg font-semibold">Registrar visita sin pago</h3>' +
+    '<div class="seg"><input type="radio" name="estado" id="e1" value="no_pago" checked><label for="e1">No pagó</label><input type="radio" name="estado" id="e2" value="no_encontrado"><label for="e2">No encontrado</label></div>' +
+    '<div id="box-np" class="space-y-4"><div><label class="label">Motivo *</label><textarea name="nota" rows="2" class="textarea" placeholder="Ej. No tiene dinero hasta el viernes"></textarea></div>' +
+    '<div><label class="label">¿Cuándo regresarás? *</label><input type="date" name="regreso" class="input" min="' + MANANA + '" value="' + MANANA + '"></div></div>' +
+    '<div id="box-ne" class="hidden rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm p-3">La visita se agendará automáticamente para mañana (' + MANANA_TXT + ').</div>' +
+    '<button class="btn btn-danger btn-lg w-full">Guardar visita</button></form>');
   var f = document.getElementById('fn');
-  f.addEventListener('submit', async function (e) { e.preventDefault(); f.querySelector('button').disabled = true; var g = await getGeo(); await marcar(id, f.querySelector('input[name=estado]:checked').value, f.nota.value, g); });
+  function toggle() { var ne = f.querySelector('input[name=estado]:checked').value === 'no_encontrado'; document.getElementById('box-np').classList.toggle('hidden', ne); document.getElementById('box-ne').classList.toggle('hidden', !ne); }
+  f.querySelectorAll('input[name=estado]').forEach(function (r) { r.addEventListener('change', toggle); });
+  f.nota.focus();
+  f.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var est = f.querySelector('input[name=estado]:checked').value;
+    if (est === 'no_pago' && !f.nota.value.trim()) { toast('Describe el motivo'); f.nota.focus(); return; }
+    if (est === 'no_pago' && !f.regreso.value) { toast('Indica la fecha de regreso'); return; }
+    f.querySelector('button').disabled = true;
+    var g = await getGeo();
+    var r = await api(RUTA_URL, { accion: 'visita', visita_id: id, estado: est, nota: est === 'no_pago' ? f.nota.value : '', regreso: f.regreso.value, lat: g ? g.lat : '', lng: g ? g.lng : '' });
+    if (!r.ok) { f.querySelector('button').disabled = false; return toast(r.error || 'Error'); }
+    location.reload();
+  });
 }
 async function marcar(id, estado, nota, g) {
   var r = await api(RUTA_URL, { accion: 'visita', visita_id: id, estado: estado, nota: nota || '', lat: g ? g.lat : '', lng: g ? g.lng : '' });

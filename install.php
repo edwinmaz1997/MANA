@@ -18,6 +18,9 @@ if (file_exists($cfgFile)) {
         if ($has && $pdo->query('SELECT COUNT(*) FROM superadmins')->fetchColumn() > 0) {
             // Ya instalado: solo aplicar actualizaciones de esquema (idempotente)
             $pdo->exec(file_get_contents(__DIR__ . '/sql/schema.sql'));
+            require_once __DIR__ . '/app/helpers.php';
+            require_once __DIR__ . '/app/migrate.php';
+            migrar();
             die('<div style="font-family:sans-serif;padding:40px;text-align:center"><h2>MANA ya está instalado</h2><p>Esquema verificado. Por seguridad puedes eliminar <b>install.php</b>.</p><a href="index.php">Ir al sistema</a></div>');
         }
     } catch (Throwable $e) { /* continuar con el formulario */ }

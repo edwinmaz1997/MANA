@@ -33,3 +33,5 @@ require __DIR__ . '/helpers.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/creditos.php';
 require __DIR__ . '/layout.php';
+require __DIR__ . '/migrate.php';
+migrar();

@@ -117,6 +117,7 @@ function registrar_abono($venta_id, $monto, array $opts = [])
         'lng' => isset($opts['lng']) ? nullable($opts['lng']) : null,
     ]);
     recalcular_venta($venta_id);
+    update('ventas', ['proxima_visita' => null], 'id = ?', [$venta_id]);
     if ($tipo !== 'contado') {
         $nv = row('SELECT saldo FROM ventas WHERE id = ?', [$venta_id]);
         chat_sistema($venta_id, ucfirst($tipo) . ' de ' . money($monto) . ' recibido por ' . $u['nombre'] . '. Saldo: ' . money($nv['saldo']));
@@ -226,7 +227,7 @@ function generar_ruta($cobrador_id, $fecha)
     }
 
     $ya = array_flip(array_column(rows('SELECT venta_id FROM ruta_visitas WHERE ruta_id=?', [$rid]), 'venta_id'));
-    $cands = rows("SELECT v.id, v.cliente_id, c.area_id, a.nombre area, c.nombre, v.fecha_enganche, v.enganche_monto,
+    $cands = rows("SELECT v.id, v.cliente_id, c.area_id, a.nombre area, c.nombre, v.fecha_enganche, v.enganche_monto, v.proxima_visita,
             (SELECT MIN(cu.fecha_vencimiento) FROM cuotas cu WHERE cu.venta_id=v.id AND cu.estado<>'pagada') prox
         FROM ventas v JOIN clientes c ON c.id=v.cliente_id JOIN areas a ON a.id=c.area_id
         WHERE v.empresa_id=? AND v.tipo='credito' AND v.estado='activa' AND a.cobrador_id=? AND a.activo=1
@@ -236,9 +237,11 @@ function generar_ruta($cobrador_id, $fecha)
     foreach ($cands as $c) {
         if (isset($ya[$c['id']])) continue;
         $pendEng = !$c['fecha_enganche'] && $c['enganche_monto'] > 0;
-        $toca = $pendEng || ($c['prox'] && $c['prox'] <= $fecha) || isset($carry[$c['id']]);
+        $pv = $c['proxima_visita'];
+        if ($pv && $pv > $fecha && !isset($carry[$c['id']])) continue; // el cobrador agendó regresar otro día
+        $toca = $pendEng || ($c['prox'] && $c['prox'] <= $fecha) || isset($carry[$c['id']]) || ($pv && $pv <= $fecha);
         if (!$toca) continue;
-        $prog = isset($carry[$c['id']]) && $carry[$c['id']] ? $carry[$c['id']] : ($c['prox'] ?: $fecha);
+        $prog = isset($carry[$c['id']]) && $carry[$c['id']] ? $carry[$c['id']] : ($pv ?: ($c['prox'] ?: $fecha));
         insert('ruta_visitas', [
             'ruta_id' => $rid, 'venta_id' => $c['id'], 'cliente_id' => $c['cliente_id'], 'area_id' => $c['area_id'],
             'orden' => ++$orden, 'fecha_programada' => $prog,
