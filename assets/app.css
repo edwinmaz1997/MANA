@@ -38,6 +38,8 @@ body { font-family: Inter, system-ui, sans-serif; }
 .input:focus, .select:focus, .textarea:focus { outline:none; border-color:#6366f1; box-shadow:var(--ring); }
 .input-lg { padding:.8rem 1rem; font-size:1.05rem; }
 .input-date-sm { width:auto; }
+.area-grupo.cerrado .area-body { display:none; }
+.area-grupo.cerrado .chev { transform:rotate(-90deg); }
 .break-anywhere { overflow-wrap:anywhere; }
 .td-v { min-width:0; }
 .fit { white-space:nowrap; display:block; max-width:100%; }

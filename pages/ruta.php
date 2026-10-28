@@ -48,8 +48,17 @@ $ruta = row('SELECT * FROM rutas WHERE empresa_id=? AND fecha=? AND cobrador_id=
 $visitas = $ruta ? rows("SELECT rv.*, c.nombre, c.apellido, c.codigo cli_codigo, c.telefono, c.direccion, c.maps_url, c.lat clat, c.lng clng, c.foto_casa, a.nombre area,
         v.codigo, v.saldo, v.cuota_monto, v.proxima_visita, v.enganche_monto, v.fecha_enganche, v.estado vestado, v.tipo, v.fecha, v.ultimo_abono, ab.monto abono_monto, " . sql_credito_cols() . "
     FROM ruta_visitas rv JOIN ventas v ON v.id=rv.venta_id LEFT JOIN clientes c ON c.id=rv.cliente_id LEFT JOIN areas a ON a.id=rv.area_id LEFT JOIN abonos ab ON ab.id=rv.abono_id AND ab.anulado=0
-    WHERE rv.ruta_id=? AND rv.estado<>'reprogramada' ORDER BY (rv.estado='pendiente') DESC, rv.atrasada DESC, rv.orden", [$ruta['id']]) : [];
+    WHERE rv.ruta_id=? AND rv.estado<>'reprogramada' ORDER BY COALESCE(a.nombre, 'zzz'), (rv.estado='pendiente') DESC, rv.atrasada DESC, c.nombre, rv.orden", [$ruta['id']]) : [];
 $res = resumen_cobrador($cobId, $fecha, $fecha);
+// Agrupar por área: primero las áreas con visitas pendientes
+$grupos = [];
+foreach ($visitas as $x) $grupos[$x['area'] ?: 'Sin área'][] = $x;
+uksort($grupos, function ($a, $b) use ($grupos) {
+    $pa = count(array_filter($grupos[$a], function ($x) { return $x['estado'] === 'pendiente'; })) > 0;
+    $pb = count(array_filter($grupos[$b], function ($x) { return $x['estado'] === 'pendiente'; })) > 0;
+    if ($pa !== $pb) return $pa ? -1 : 1;
+    return strcasecmp($a, $b);
+});
 $pend = count(array_filter($visitas, function ($x) { return $x['estado'] === 'pendiente'; }));
 $hechas = count($visitas) - $pend;
 $pctV = count($visitas) ? round($hechas / count($visitas) * 100) : 0;
@@ -80,8 +89,27 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
   <button class="tab" data-f="all">Todas</button>
 </div>
 
-<div class="space-y-3" id="visitas">
-<?php foreach ($visitas as $x):
+<?php if (count($grupos) > 1): ?>
+<div class="flex gap-2 overflow-x-auto pb-2 mb-2 -mx-1 px-1" id="area-chips">
+  <?php $gi = 0; foreach ($grupos as $area => $lista): $gp = count(array_filter($lista, function ($x) { return $x['estado'] === 'pendiente'; })); ?>
+    <a href="#area-<?= $gi++ ?>" class="shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium <?= $gp ? 'bg-white border-slate-200 text-slate-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700' ?>">
+      <i data-lucide="<?= $gp ? 'map-pin' : 'check-circle' ?>" class="w-4 h-4"></i><?= e($area) ?> <span class="text-xs <?= $gp ? 'text-slate-500' : '' ?>"><?= count($lista) - $gp ?>/<?= count($lista) ?></span>
+    </a>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
+<div class="space-y-5" id="visitas">
+<?php $gi = 0; foreach ($grupos as $area => $lista):
+    $gp = count(array_filter($lista, function ($x) { return $x['estado'] === 'pendiente'; }));
+    $gc = array_sum(array_map(function ($x) { return (float) $x['abono_monto']; }, $lista)); ?>
+<section class="area-grupo scroll-mt-20" id="area-<?= $gi++ ?>">
+  <button type="button" class="w-full flex items-center gap-3 px-1 mb-2 text-left" onclick="this.parentNode.classList.toggle('cerrado')">
+    <div class="w-9 h-9 rounded-xl <?= $gp ? 'bg-brand-600 text-white' : 'bg-emerald-100 text-emerald-700' ?> grid place-items-center shrink-0"><i data-lucide="<?= $gp ? 'map-pinned' : 'check' ?>" class="w-4 h-4"></i></div>
+    <div class="min-w-0 flex-1"><div class="font-semibold truncate"><?= e($area) ?></div><div class="text-xs text-slate-500"><?= $gp ? $gp . ' pendiente(s) de ' . count($lista) : 'Área completada' ?><?= $gc > 0 ? ' · cobrado ' . money($gc) : '' ?></div></div>
+    <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 chev transition-transform"></i>
+  </button>
+  <div class="area-body space-y-3">
+<?php foreach ($lista as $x):
     $s = semaforo(array_merge($x, ['estado' => $x['vestado']]));
     $pendEng = !$x['fecha_enganche'] && $x['enganche_monto'] > 0;
     $sugerido = $pendEng ? $x['enganche_monto'] : ((float) $x['monto_exigible'] > 0 ? (float) $x['monto_exigible'] : (float) $x['cuota_monto']);
@@ -94,7 +122,7 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
       <?php if ($x['foto_casa']): ?><a href="<?= e($x['foto_casa']) ?>" target="_blank"><img src="<?= e($x['foto_casa']) ?>" class="w-16 h-16 rounded-xl object-cover"></a><?php else: ?><div class="w-16 h-16 rounded-xl bg-slate-100 grid place-items-center text-slate-300"><i data-lucide="home" class="w-6 h-6"></i></div><?php endif; ?>
       <div class="min-w-0 flex-1">
         <div class="flex items-start gap-2">
-          <div class="min-w-0 flex-1"><div class="font-semibold truncate"><?= e(nombre_completo($x)) ?></div><div class="text-xs text-slate-500 truncate"><?= e($x['area']) ?> · <?= e($x['codigo']) ?></div></div>
+          <div class="min-w-0 flex-1"><div class="font-semibold truncate"><?= e(nombre_completo($x)) ?></div><div class="text-xs text-slate-500 truncate"><?= e($x['codigo']) ?><?= $x['telefono'] ? ' · ' . e($x['telefono']) : '' ?></div></div>
           <span class="badge <?= $eb[0] ?>"><?= e($eb[1]) ?></span>
         </div>
         <div class="text-xs text-slate-600 mt-1 line-clamp-2"><?= e($x['direccion']) ?></div>
@@ -125,6 +153,9 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
     </div>
   </div>
 <?php endforeach; ?>
+  </div>
+</section>
+<?php endforeach; ?>
 </div>
 <?php if (!$visitas): ?>
   <div class="card"><?= empty_state($ruta ? 'No hay visitas programadas para esta fecha' : 'No hay ruta para esta fecha', 'map') ?>
@@ -138,6 +169,7 @@ document.querySelectorAll('#ftabs .tab').forEach(function (t) {
   t.addEventListener('click', function () {
     document.querySelectorAll('#ftabs .tab').forEach(function (x) { x.classList.remove('active'); }); t.classList.add('active');
     document.querySelectorAll('.visita').forEach(function (v) { v.classList.toggle('hidden', t.dataset.f !== 'all' && v.dataset.estado !== t.dataset.f); });
+    document.querySelectorAll('.area-grupo').forEach(function (g) { g.classList.toggle('hidden', !g.querySelector('.visita:not(.hidden)')); });
   });
 });
 document.querySelector('#ftabs .tab').click();
