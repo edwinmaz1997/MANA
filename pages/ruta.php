@@ -46,7 +46,7 @@ if ($fecha >= today()) {
 }
 $ruta = row('SELECT * FROM rutas WHERE empresa_id=? AND fecha=? AND cobrador_id=?', [$eid, $fecha, $cobId]);
 $visitas = $ruta ? rows("SELECT rv.*, c.nombre, c.apellido, c.codigo cli_codigo, c.telefono, c.direccion, c.maps_url, c.lat clat, c.lng clng, c.foto_casa, a.nombre area,
-        v.codigo, v.saldo, v.cuota_monto, v.proxima_visita, v.enganche_monto, v.fecha_enganche, v.estado vestado, v.tipo, v.fecha, v.ultimo_abono, ab.monto abono_monto, " . sql_credito_cols() . "
+        v.codigo, v.saldo, v.cuota_monto, v.proxima_visita, v.enganche_monto, v.fecha_enganche, v.estado vestado, v.tipo, v.fecha, v.ultimo_abono, ab.monto abono_monto, " . sql_credito_cols($fecha) . "
     FROM ruta_visitas rv JOIN ventas v ON v.id=rv.venta_id LEFT JOIN clientes c ON c.id=rv.cliente_id LEFT JOIN areas a ON a.id=rv.area_id LEFT JOIN abonos ab ON ab.id=rv.abono_id AND ab.anulado=0
     WHERE rv.ruta_id=? AND rv.estado<>'reprogramada' ORDER BY COALESCE(a.nombre, 'zzz'), (rv.estado='pendiente') DESC, rv.atrasada DESC, c.nombre, rv.orden", [$ruta['id']]) : [];
 $res = resumen_cobrador($cobId, $fecha, $fecha);
@@ -111,6 +111,11 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
   <div class="area-body space-y-3">
 <?php foreach ($lista as $x):
     $s = semaforo(array_merge($x, ['estado' => $x['vestado']]));
+    if ($fecha > today() && $x['vestado'] === 'activa' && $s[1] !== 'Pendiente de enganche') {
+        // Vista de un día futuro: estado proyectado a esa fecha
+        if ($x['monto_vencido'] > 0) $s = ['amarillo', 'Saldo atrasado + cuota', 'badge-yellow'];
+        elseif ($x['prox_venc_ref'] === $fecha) $s = ['verde', 'Cuota de este día', 'badge-green'];
+    }
     $pendEng = !$x['fecha_enganche'] && $x['enganche_monto'] > 0;
     $sugerido = $pendEng ? $x['enganche_monto'] : ((float) $x['monto_exigible'] > 0 ? (float) $x['monto_exigible'] : (float) $x['cuota_monto']);
     $sugerido = min($sugerido, (float) $x['saldo']);
@@ -135,7 +140,7 @@ layout_header(is_admin() && $cobId !== uid() ? 'Ruta de ' . $cob['nombre'] : 'Mi
     </div>
     <div class="px-4 pb-3 grid grid-cols-3 gap-2 text-center text-sm">
       <div class="rounded-lg bg-slate-50 py-1.5"><div class="text-[11px] text-slate-500">Cobrar</div><div class="font-bold"><?= money($sugerido) ?></div></div>
-      <div class="rounded-lg bg-slate-50 py-1.5"><?php if ($x['monto_vencido'] > 0): ?><div class="text-[11px] text-slate-500">Vencido</div><div class="font-bold text-rose-600"><?= money($x['monto_vencido']) ?></div><?php else: ?><div class="text-[11px] text-slate-500">Vence</div><div class="font-bold <?= $x['prox_venc'] === today() ? 'text-amber-600' : '' ?>"><?= $x['prox_venc'] === today() ? 'Hoy' : ($x['prox_venc'] ? fdate($x['prox_venc']) : '—') ?></div><?php endif; ?></div>
+      <div class="rounded-lg bg-slate-50 py-1.5"><?php if ($x['monto_vencido'] > 0): ?><div class="text-[11px] text-slate-500">Atrasado</div><div class="font-bold text-rose-600"><?= money($x['monto_vencido']) ?></div><?php else: ?><div class="text-[11px] text-slate-500">Vence</div><div class="font-bold <?= $x['prox_venc_ref'] === $fecha ? 'text-amber-600' : '' ?>"><?= $x['prox_venc_ref'] === $fecha ? ($fecha === today() ? 'Hoy' : 'Este día') : ($x['prox_venc_ref'] ? fdate($x['prox_venc_ref']) : '—') ?></div><?php endif; ?></div>
       <div class="rounded-lg bg-slate-50 py-1.5"><div class="text-[11px] text-slate-500">Saldo</div><div class="font-bold"><?= money($x['saldo']) ?></div></div>
     </div>
     <?php if ($x['nota']): ?><div class="px-4 pb-3 text-xs text-slate-600"><i data-lucide="sticky-note" class="w-3 h-3 inline"></i> <?= e($x['nota']) ?></div><?php endif; ?>

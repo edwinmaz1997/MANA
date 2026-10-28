@@ -153,12 +153,15 @@ function chat_sistema($venta_id, $msg)
 /* ---------- Semáforo ---------- */
 
 /** Columnas SQL calculadas para créditos (alias de ventas = v) */
-function sql_credito_cols()
+function sql_credito_cols($fecha = null)
 {
+    // $fecha: fecha de referencia para montos vencidos / a cobrar (por defecto hoy)
+    $f = ($fecha && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) ? "'" . $fecha . "'" : 'CURDATE()';
     return "(SELECT MIN(c.fecha_vencimiento) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada') AS prox_venc,
+            (SELECT MIN(c.fecha_vencimiento) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada' AND c.fecha_vencimiento >= $f) AS prox_venc_ref,
             GREATEST(0, DATEDIFF(CURDATE(), (SELECT MIN(c.fecha_vencimiento) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada'))) AS dias_atraso,
-            (SELECT COALESCE(SUM(c.monto - c.pagado),0) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada' AND c.fecha_vencimiento < CURDATE()) AS monto_vencido,
-            (SELECT COALESCE(SUM(c.monto - c.pagado),0) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada' AND c.fecha_vencimiento <= CURDATE()) AS monto_exigible,
+            (SELECT COALESCE(SUM(c.monto - c.pagado),0) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada' AND c.fecha_vencimiento < $f) AS monto_vencido,
+            (SELECT COALESCE(SUM(c.monto - c.pagado),0) FROM cuotas c WHERE c.venta_id = v.id AND c.estado <> 'pagada' AND c.fecha_vencimiento <= $f) AS monto_exigible,
             DATEDIFF(CURDATE(), COALESCE(v.ultimo_abono, v.fecha_enganche, v.fecha)) AS dias_sin_abono";
 }
 
