@@ -17,6 +17,11 @@ if (is_post()) {
             case 'abono':
                 if (!$puedeCobrar) throw new RuntimeException('No puedes registrar pagos en esta venta');
                 $aid = registrar_abono($id, dec(post('monto')), ['metodo' => post('metodo'), 'nota' => post('nota'), 'lat' => post('lat'), 'lng' => post('lng'), 'visita_id' => nullable(post('visita_id'))]);
+                $reg = (string) post('regreso');
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $reg) && $reg > today()) {
+                    update('ventas', ['proxima_visita' => $reg], 'id=?', [$id]);
+                    chat_sistema($id, 'Abono parcial: el cobrador regresará por el resto el ' . fdate($reg));
+                }
                 if ($vis = (int) post('visita_id')) update('ruta_visitas', ['estado' => 'pago', 'visitado_at' => now(), 'abono_id' => $aid, 'lat' => nullable(post('lat')), 'lng' => nullable(post('lng'))], 'id=?', [$vis]);
                 if (is_ajax()) json_out(['ok' => true, 'abono_id' => $aid]);
                 flash('success', 'Pago registrado');
@@ -258,6 +263,7 @@ layout_header('Venta ' . $v['codigo'], ['actions' => $acts]);
       <div><label class="label">Método</label><select name="metodo" class="select"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="deposito">Depósito</option></select></div>
       <div><label class="label">Nota</label><input name="nota" class="input"></div>
     </div>
+    <?php if (!$pendEng): ?><div><label class="label">¿Regresar por el resto? <span class="font-normal text-slate-400">(opcional)</span></label><input type="date" name="regreso" class="input" min="<?= date('Y-m-d', strtotime('+1 day')) ?>"><div class="hint">Si lo dejas vacío, la próxima visita será en el vencimiento de la siguiente cuota.</div></div><?php endif; ?>
     <button class="btn btn-success btn-lg w-full"><i data-lucide="check"></i> Confirmar pago</button>
   </form>
 </div>

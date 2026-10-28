@@ -178,12 +178,15 @@ function cobrar(d) {
   openModal('<form class="p-6 space-y-4" id="fc"><h3 class="text-lg font-semibold">' + (d.eng ? 'Cobrar enganche' : 'Registrar cobro') + '</h3><div class="text-sm text-slate-600">' + escapeHtml(d.nombre) + ' · Saldo ' + money(d.saldo) + '</div>' +
     '<div><label class="label">Monto recibido</label><input name="monto" type="number" step="0.01" min="0.01" max="' + d.saldo + '" value="' + d.monto.toFixed(2) + '" required class="input input-lg text-2xl font-bold" autofocus></div>' +
     '<div class="grid grid-cols-2 gap-3"><div><label class="label">Método</label><select name="metodo" class="select"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="deposito">Depósito</option></select></div><div><label class="label">Nota</label><input name="nota" class="input"></div></div>' +
+    (d.eng ? '' : '<div id="box-resto" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-3 space-y-2"><div class="text-sm text-amber-800">Abono parcial. ¿Cuándo regresas por el resto? <span class="text-amber-600">(opcional)</span></div><input type="date" name="regreso" class="input" min="' + MANANA + '"><div class="hint !text-amber-700">Si lo dejas vacío, volverá a salir en la ruta cuando venza la siguiente cuota.</div></div>') +
     '<button class="btn btn-success btn-lg w-full"><i data-lucide="check"></i> Confirmar pago</button></form>');
   var f = document.getElementById('fc'), geo = null;
+  function chkResto() { var b = document.getElementById('box-resto'); if (b) b.classList.toggle('hidden', !(Number(f.monto.value) > 0 && Number(f.monto.value) < d.monto)); }
+  f.monto.addEventListener('input', chkResto);
   getGeo().then(function (g) { geo = g; });
   f.addEventListener('submit', async function (e) {
     e.preventDefault(); var b = f.querySelector('button'); b.disabled = true;
-    var r = await api('index.php?p=venta&id=' + d.venta, { accion: 'abono', monto: f.monto.value, metodo: f.metodo.value, nota: f.nota.value, visita_id: d.visita, lat: geo ? geo.lat : '', lng: geo ? geo.lng : '' });
+    var r = await api('index.php?p=venta&id=' + d.venta, { accion: 'abono', monto: f.monto.value, metodo: f.metodo.value, nota: f.nota.value, regreso: f.regreso && !document.getElementById('box-resto').classList.contains('hidden') ? f.regreso.value : '', visita_id: d.visita, lat: geo ? geo.lat : '', lng: geo ? geo.lng : '' });
     if (!r.ok) { b.disabled = false; return toast(r.error || 'Error'); }
     openModal('<div class="p-6 text-center"><div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 grid place-items-center mx-auto"><i data-lucide="check" class="w-7 h-7"></i></div><h3 class="text-lg font-semibold mt-3">Pago registrado</h3><div class="text-2xl font-extrabold mt-1">' + money(f.monto.value) + '</div><div class="grid gap-2 mt-5"><a href="ticket.php?tipo=abono&id=' + r.abono_id + '" target="_blank" class="btn btn-primary btn-lg" onclick="setTimeout(function(){location.href=RUTA_URL},800)"><i data-lucide="printer"></i> Imprimir recibo</a><a href="' + RUTA_URL + '" class="btn btn-light">Continuar ruta</a></div></div>');
   });

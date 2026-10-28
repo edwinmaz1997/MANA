@@ -211,6 +211,21 @@ function resumen_cobrador($usuario_id, $desde, $hasta)
 /* ---------- Rutas ---------- */
 
 /**
+ * Fecha desde la que hay que visitar al cliente para cobrar.
+ * Si ya abonó algo desde que venció su cuota más antigua pendiente, esa cuota se considera atendida
+ * y la siguiente visita es en el vencimiento de la cuota que sigue (el saldo pendiente se suma ahí).
+ */
+function cobro_desde(array $c)
+{
+    if (empty($c['prox'])) return null;
+    if (!empty($c['ultimo_abono']) && $c['ultimo_abono'] >= $c['prox']) {
+        $sig = val("SELECT MIN(fecha_vencimiento) FROM cuotas WHERE venta_id=? AND estado<>'pagada' AND fecha_vencimiento > ?", [$c['id'], $c['prox']]);
+        return $sig ?: null;
+    }
+    return $c['prox'];
+}
+
+/**
  * Crea o sincroniza la ruta de un cobrador para una fecha (hoy o futura).
  * - Agrega los créditos que tocan: cuota vencida o que vence ese día, enganche pendiente,
  *   visita agendada para ese día y (solo hoy) las visitas pendientes de días anteriores.
@@ -238,7 +253,7 @@ function generar_ruta($cobrador_id, $fecha)
 
     // Qué créditos deben estar en la ruta
     $debe = [];
-    $cands = rows("SELECT v.id, v.cliente_id, c.area_id, v.fecha_enganche, v.enganche_monto, v.proxima_visita,
+    $cands = rows("SELECT v.id, v.cliente_id, c.area_id, v.fecha_enganche, v.enganche_monto, v.proxima_visita, v.ultimo_abono,
             (SELECT MIN(cu.fecha_vencimiento) FROM cuotas cu WHERE cu.venta_id=v.id AND cu.estado<>'pagada') prox
         FROM ventas v JOIN clientes c ON c.id=v.cliente_id JOIN areas a ON a.id=c.area_id
         WHERE v.empresa_id=? AND v.tipo='credito' AND v.estado='activa' AND a.cobrador_id=? AND a.activo=1
@@ -248,9 +263,14 @@ function generar_ruta($cobrador_id, $fecha)
         $pendEng = !$c['fecha_enganche'] && $c['enganche_monto'] > 0;
         $pv = $c['proxima_visita'];
         if (isset($carry[$vid])) { $debe[$vid] = [$c, $carry[$vid] ?: $fecha, 1]; continue; }
-        if ($pv && $pv > $fecha) continue; // el cobrador agendó regresar otro día
-        if ($pendEng || ($c['prox'] && $c['prox'] <= $fecha) || ($pv && $pv <= $fecha)) {
-            $prog = $pv ?: ($c['prox'] ?: $fecha);
+        if ($pv) { // el cobrador agendó la próxima visita: manda esa fecha
+            if ($pv > $fecha) continue;
+            $debe[$vid] = [$c, $pv, 0];
+            continue;
+        }
+        $prox = cobro_desde($c);
+        if ($pendEng || ($prox && $prox <= $fecha)) {
+            $prog = $prox ?: $fecha;
             $debe[$vid] = [$c, $prog, $prog < $fecha ? 1 : 0];
         }
     }
