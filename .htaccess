@@ -7,3 +7,10 @@ DirectoryIndex index.php
   php_value upload_max_filesize 16M
   php_value post_max_size 20M
 </IfModule>
+AddType application/manifest+json .webmanifest
+<IfModule mod_headers.c>
+<Files "sw.js">
+  Header set Cache-Control "no-cache"
+  Header set Service-Worker-Allowed "./"
+</Files>
+</IfModule>

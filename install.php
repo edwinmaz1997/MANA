@@ -1,6 +1,6 @@
 <?php
 /**
- * Instalador de MANA
+ * Instalador de Rutero
  * Crea config.php, las tablas y el usuario superadmin.
  */
 define('APP_ROOT', __DIR__);
@@ -21,7 +21,7 @@ if (file_exists($cfgFile)) {
             require_once __DIR__ . '/app/helpers.php';
             require_once __DIR__ . '/app/migrate.php';
             migrar();
-            die('<div style="font-family:sans-serif;padding:40px;text-align:center"><h2>MANA ya está instalado</h2><p>Esquema verificado. Por seguridad puedes eliminar <b>install.php</b>.</p><a href="index.php">Ir al sistema</a></div>');
+            die('<div style="font-family:sans-serif;padding:40px;text-align:center"><h2>Rutero ya está instalado</h2><p>Esquema verificado. Por seguridad puedes eliminar <b>install.php</b>.</p><a href="index.php">Ir al sistema</a></div>');
         }
     } catch (Throwable $e) { /* continuar con el formulario */ }
 }
@@ -58,10 +58,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?><!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Instalar MANA</title><link rel="stylesheet" href="assets/styles.css"></head>
+<title>Instalar Rutero</title><link rel="stylesheet" href="assets/styles.css"></head>
 <body class="min-h-screen bg-slate-100 grid place-items-center p-6">
 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-lg">
-  <h1 class="text-2xl font-bold">Instalar MANA</h1>
+  <h1 class="text-2xl font-bold">Instalar Rutero</h1>
   <?php if ($ok): ?>
     <div class="mt-5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 p-4">Instalación completa. Ingresa con tu usuario superadmin y crea la primera empresa. <b>Elimina install.php</b> del servidor.</div>
     <a href="index.php" class="inline-block mt-5 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold">Ir al sistema</a>

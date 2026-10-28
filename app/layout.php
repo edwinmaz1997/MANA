@@ -57,6 +57,14 @@ function layout_header($title = '', array $opt = [])
 <meta name="theme-color" content="#0f172a">
 <title><?= e($title ? $title . ' · ' : '') ?><?= e($emp ? $emp['nombre'] : APP_NAME) ?></title>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rutero">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="application-name" content="Rutero">
 <link rel="stylesheet" href="<?= asset('assets/styles.css') ?>">
 <script src="<?= asset('assets/vendor/lucide.min.js') ?>"></script>
 <script src="<?= asset('assets/app.js') ?>"></script>
@@ -78,7 +86,7 @@ function layout_header($title = '', array $opt = [])
       <?php if ($emp && $emp['logo']): ?>
         <img src="<?= e($emp['logo']) ?>" class="w-10 h-10 rounded-xl object-contain bg-white p-1" alt="">
       <?php else: ?>
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-400 grid place-items-center text-white font-extrabold">M</div>
+        <img src="assets/icons/icon-192.png" class="w-10 h-10 rounded-xl" alt="">
       <?php endif; ?>
       <div class="min-w-0">
         <div class="text-white font-semibold truncate"><?= e($emp ? $emp['nombre'] : APP_NAME . ' Admin') ?></div>
@@ -98,6 +106,9 @@ function layout_header($title = '', array $opt = [])
       <?php endforeach; ?>
     </nav>
     <div class="p-3 border-t border-white/5">
+      <button type="button" onclick="instalarApp()" class="pwa-install hidden w-full mb-2 flex items-center gap-3 rounded-xl bg-white/5 hover:bg-white/10 px-3 py-2.5 text-left">
+        <img src="assets/icons/icon-192.png" class="w-8 h-8 rounded-lg" alt=""><span class="min-w-0"><span class="block text-sm text-white font-semibold">Descargar Rutero</span><span class="block text-xs text-slate-400">Instalar en este dispositivo</span></span><i data-lucide="download" class="w-4 h-4 ml-auto text-slate-300"></i>
+      </button>
       <div class="flex items-center gap-3 px-2 py-2">
         <div class="w-9 h-9 rounded-full bg-white/10 grid place-items-center text-white font-semibold"><?= e(mb_strtoupper(mb_substr($displayName, 0, 1))) ?></div>
         <div class="min-w-0 flex-1">
@@ -123,6 +134,14 @@ function layout_header($title = '', array $opt = [])
     <main class="flex-1 px-4 lg:px-8 py-6 pb-28 lg:pb-10 max-w-[1400px] w-full mx-auto">
       <?php if ($mem && $mem['ok'] && $mem['dias'] <= 5 && is_admin()): ?>
         <div class="mb-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 text-sm flex gap-2 items-center"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Tu membresía vence en <?= (int) $mem['dias'] ?> día(s) (<?= fdate($emp['fecha_vencimiento']) ?>).</div>
+      <?php endif; ?>
+      <?php if ($u): ?>
+      <div class="pwa-install pwa-banner hidden lg:!hidden mb-4 rounded-2xl bg-gradient-to-r from-brand-600 to-slate-900 text-white p-4 flex items-center gap-3">
+        <img src="assets/icons/icon-192.png" class="w-12 h-12 rounded-xl shrink-0" alt="">
+        <div class="min-w-0 flex-1"><div class="font-semibold">Instala Rutero en tu teléfono</div><div class="text-xs text-indigo-100">Ábrelo como app, a pantalla completa.</div></div>
+        <button type="button" onclick="instalarApp()" class="btn bg-white text-slate-900 btn-sm shrink-0">Instalar</button>
+        <button type="button" onclick="ocultarBanner()" class="p-1 text-indigo-200 shrink-0" aria-label="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
       <?php endif; ?>
       <?php foreach ($flash as $f): $c = $f['type'] === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : ($f['type'] === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'); ?>
         <div class="mb-4 rounded-xl border px-4 py-3 text-sm <?= $c ?> flash"><?= e($f['msg']) ?></div>

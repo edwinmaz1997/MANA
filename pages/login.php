@@ -20,6 +20,14 @@ if (is_post()) {
 <meta name="theme-color" content="#0f172a">
 <title>Ingresar · <?= APP_NAME ?></title>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rutero">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="application-name" content="Rutero">
 <link rel="stylesheet" href="<?= asset('assets/styles.css') ?>">
 <style>body{font-family:Inter,system-ui,sans-serif}</style>
 </head>
@@ -28,7 +36,7 @@ if (is_post()) {
     <div class="absolute -right-32 -top-32 w-96 h-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
     <div class="absolute -left-20 bottom-0 w-80 h-80 rounded-full bg-indigo-300/20 blur-3xl"></div>
     <div class="flex items-center gap-3 relative">
-      <div class="w-11 h-11 rounded-2xl bg-white text-indigo-700 grid place-items-center font-extrabold text-xl">M</div>
+      <img src="assets/icons/icon-192.png" class="w-11 h-11 rounded-2xl" alt="">
       <span class="text-xl font-bold tracking-tight"><?= APP_NAME ?></span>
     </div>
     <div class="relative">
@@ -41,7 +49,7 @@ if (is_post()) {
     <form method="post" class="w-full max-w-sm">
       <?= csrf_field() ?>
       <div class="lg:hidden flex items-center gap-3 mb-10">
-        <div class="w-11 h-11 rounded-2xl bg-indigo-600 grid place-items-center font-extrabold text-xl">M</div>
+        <img src="assets/icons/icon-192.png" class="w-11 h-11 rounded-2xl" alt="">
         <span class="text-xl font-bold"><?= APP_NAME ?></span>
       </div>
       <h2 class="text-2xl font-bold">Bienvenido</h2>
@@ -54,5 +62,6 @@ if (is_post()) {
       <button class="w-full mt-7 rounded-xl bg-indigo-600 hover:bg-indigo-500 py-3 font-semibold transition">Ingresar</button>
     </form>
   </div>
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
 </body>
 </html>

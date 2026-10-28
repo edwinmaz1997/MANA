@@ -214,3 +214,30 @@ document.addEventListener('DOMContentLoaded', function () {
     bar.scrollLeft += (ar.left - br.left) - (bar.clientWidth - ar.width) / 2;
   });
 });
+
+/* ---- App instalable (PWA) ---- */
+(function () {
+  var deferred = null;
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function bannerOculto() { try { return localStorage.getItem('rutero_banner') === '1'; } catch (e) { return false; } }
+  function mostrar() {
+    if (standalone) return;
+    document.querySelectorAll('.pwa-install').forEach(function (el) {
+      if (el.classList.contains('pwa-banner') && bannerOculto()) return;
+      el.classList.remove('hidden');
+    });
+  }
+  if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; mostrar(); });
+  window.addEventListener('appinstalled', function () { document.querySelectorAll('.pwa-install').forEach(function (el) { el.classList.add('hidden'); }); toast('Rutero se instaló correctamente'); });
+  document.addEventListener('DOMContentLoaded', function () { if (ios && !standalone) mostrar(); });
+  window.ocultarBanner = function () { try { localStorage.setItem('rutero_banner', '1'); } catch (e) {} document.querySelectorAll('.pwa-banner').forEach(function (el) { el.classList.add('hidden'); }); };
+  window.instalarApp = function () {
+    if (deferred) { deferred.prompt(); deferred.userChoice.finally(function () { deferred = null; }); return; }
+    var pasos = ios
+      ? '<li>Toca el botón <b>Compartir</b> <i data-lucide="share" class="w-4 h-4 inline"></i> en la barra de Safari.</li><li>Elige <b>Agregar a pantalla de inicio</b>.</li><li>Toca <b>Agregar</b>.</li>'
+      : '<li>Abre el menú del navegador <b>⋮</b>.</li><li>Toca <b>Instalar aplicación</b> o <b>Agregar a pantalla principal</b>.</li><li>Confirma con <b>Instalar</b>.</li>';
+    openModal('<div class="p-6 text-center"><img src="assets/icons/icon-192.png" class="w-16 h-16 rounded-2xl mx-auto" alt=""><h3 class="text-lg font-semibold mt-3 !pr-0">Instalar Rutero</h3><ol class="text-left text-sm text-slate-600 mt-4 space-y-2 list-decimal pl-5">' + pasos + '</ol><button class="btn btn-primary w-full mt-5" onclick="closeModal()">Entendido</button></div>');
+  };
+})();

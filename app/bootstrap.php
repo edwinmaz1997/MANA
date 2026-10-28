@@ -4,7 +4,7 @@
  * Compatible con PHP 7.4+
  */
 define('APP_ROOT', dirname(__DIR__));
-define('APP_NAME', 'MANA');
+define('APP_NAME', 'Rutero');
 define('APP_VERSION', '1.0.0');
 
 if (!file_exists(APP_ROOT . '/config.php')) {
